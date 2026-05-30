@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Big Gassy Belly Simulator</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Segoe UI',Arial,sans-serif}
+#gameCanvas{display:block;width:100vw;height:100vh}
+#hud-score{position:fixed;top:16px;left:50%;transform:translateX(-50%);color:#fff;font-size:32px;font-weight:bold;text-shadow:0 2px 8px rgba(0,0,0,.9);z-index:10}
+#hud-highscore{position:fixed;top:54px;left:50%;transform:translateX(-50%);color:#aaa;font-size:15px;text-shadow:0 2px 6px rgba(0,0,0,.9);z-index:10}
+#hud-combo{position:fixed;top:16px;right:24px;color:#ffcc00;font-size:26px;font-weight:bold;text-shadow:0 0 12px rgba(255,200,0,.6);z-index:10;display:none}
+#pause-btn{position:fixed;top:12px;left:12px;background:rgba(0,0,0,.45);border:2px solid rgba(255,255,255,.25);color:#fff;font-size:22px;cursor:pointer;padding:6px 12px;border-radius:8px;z-index:10;display:none}
+#pause-btn:hover{background:rgba(255,255,255,.15)}
+#belly-indicator{position:fixed;bottom:16px;left:16px;width:56px;height:56px;z-index:10;transition:transform .12s ease-out}
+#belly-indicator svg{width:100%;height:100%}
+.overlay{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20}
+#start-overlay{background:rgba(0,0,0,.55)}
+#start-overlay h1{color:#ffaa00;font-size:clamp(22px,5vw,52px);text-shadow:0 0 24px rgba(255,170,0,.45);margin-bottom:12px;text-align:center;line-height:1.15}
+#start-overlay .sub{color:#ccc;font-size:18px;margin-bottom:24px}
+#start-overlay button{background:#ffaa00;color:#000;border:none;font-size:26px;font-weight:bold;padding:14px 52px;border-radius:12px;cursor:pointer;transition:background .15s}
+#start-overlay button:hover{background:#ffcc44}
+#pause-overlay{background:rgba(0,0,0,.65);display:none}
+#pause-overlay h2{color:#fff;font-size:30px;margin-bottom:20px}
+#pause-overlay button{background:#ffaa00;color:#000;border:none;font-size:20px;font-weight:bold;padding:10px 32px;border-radius:10px;cursor:pointer;margin:6px;transition:background .15s}
+#pause-overlay button:hover{background:#ffcc44}
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<video id="webcam" autoplay playsinline style="display:none"></video>
+
+<div id="hud-score">0</div>
+<div id="hud-highscore">HI: 0</div>
+<div id="hud-combo"></div>
+<button id="pause-btn">⏸</button>
+<div id="belly-indicator">
+  <svg viewBox="0 0 56 56"><ellipse cx="28" cy="30" rx="22" ry="20" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/><circle cx="28" cy="33" r="2.5" fill="rgba(255,255,255,.55)"/></svg>
+</div>
+
+<div id="start-overlay" class="overlay">
+  <h1>BIG GASSY BELLY<br>SIMULATOR</h1>
+  <div class="sub">♩ <span id="bpm-display">90</span> BPM &nbsp;—&nbsp; Guitar Hero Mode</div>
+  <button id="start-btn">START</button>
+</div>
+
+<div id="pause-overlay" class="overlay">
+  <h2>PAUSED</h2>
+  <button id="resume-btn">RESUME</button>
+  <button id="quit-btn">QUIT</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js" crossorigin="anonymous"></script>
+<script>
+// ════════════════════════════════════════════════════════════
+// CONFIGURATION
+// ════════════════════════════════════════════════════════════
+const CONFIG = {
+  bpm: 90,
+  travelTime: 1800,
+  hitWindows: { perfect: 45, good: 110, bad: 240 },
+  judgmentWindow: 300,
+  audio: {
+    fartFull:  'audio/fart_full.mp3',
+    fartSmall: 'audio/fart_small.mp3',
+    burpFull:  'audio/burp_full.mp3',
+  },
+  noteChart: [
+    1,2,3,4,  6,7,8,  10,11,12,13,  15,16,17,18,
+    20,21,  23,24,25,26,  28,29,30,  32,33,34,  36,37,38,  40,41
+  ],
+  loopBeats: 44,
+  goodVolume: 0.65,
+  debounceTime: 250,
+  minSlapVelocity: 400,
+  cameraWidth: 1280,
+  cameraHeight: 720,
+  laneWidth: 120,
+  noteSize: 56,
+  hitZoneY: 0.82,
+  bellyDownNudge: 0.03,
+  bellyRadiusFactor: 0.38,
+  slapZoneFactor: 1.5,
+  pointsPerfect: 300,
+  pointsGood: 100,
+};
+
+// ════════════════════════════════════════════════════════════
+// DERIVED CONSTANTS & STATE
+// ════════════════════════════════════════════════════════════
+const msPerBeat = (60 / CONFIG.bpm) * 1000;
+const canvas = document.getElementById('gameCanvas');
+const ctx    = canvas.getContext('2d');
+const video  = document.getElementById('webcam');
+
+let gameState      = 'start';   // start | countdown | playing | paused
+let gameClockOrigin = 0;
+let gameTime       = 0;
+let pauseOffset    = 0;
+let pauseStart     = 0;
+let score          = 0;
+let combo          = 0;
+let highScore      = parseInt(localStorage.getItem('bellyHighScore') || '0');
+
+let activeNotes    = [];
+let noteIdCounter  = 0;
+let highestSpawnedLoop = -1;
+
+let latestLandmarks = null;
+let poseDetected    = false;
+let poseProcessing  = false;
+
+let bellyCenter = { x: 0, y: 0 };
+let bellyRadius = 50;
+let bellyFlashTime = 0;
+
+const wristHistory = { left: [], right: [] };
+let lastSlapTime = 0;
+
+let judgmentDisplay = { text: '', color: '', size: 0, time: 0 };
+let stinkEffects = [];
+
+let countdownStart   = 0;
+let countdownEndTime = 0;
+let lastFrameTime    = 0;
+
+const STINK_WORDS = ['PFFT!', 'BRRAAAP!', 'TOOT!', 'RIIIP!'];
+
+// ════════════════════════════════════════════════════════════
+// AUDIO
+// ════════════════════════════════════════════════════════════
+const sounds = {};
+
+function loadAudio() {
+  for (const [key, path] of Object.entries(CONFIG.audio)) {
+    const a = new Audio();
+    a.preload = 'auto';
+    a.src = path;
+    sounds[key] = a;
+  }
+}
+
+function playSound(type) {
+  const isFart = Math.random() < 0.5;
+  const key = type === 'full'
+    ? (isFart ? 'fartFull' : 'burpFull')
+    : 'fartSmall';
+  const snd = sounds[key];
+  if (!snd) return;
+  snd.currentTime = 0;
+  snd.volume = type === 'full' ? 1.0 : CONFIG.goodVolume;
+  snd.play().catch(() => {});
+}
+
+// ════════════════════════════════════════════════════════════
+// CANVAS
+// ════════════════════════════════════════════════════════════
+function resizeCanvas() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// ════════════════════════════════════════════════════════════
+// WEBCAM
+// ════════════════════════════════════════════════════════════
+async function setupCamera() {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { width: { ideal: CONFIG.cameraWidth }, height: { ideal: CONFIG.cameraHeight } },
+    audio: false,
+  });
+  video.srcObject = stream;
+  await new Promise(r => { video.onloadedmetadata = r; });
+  video.play();
+}
+
+// ════════════════════════════════════════════════════════════
+// MEDIAPIPE POSE
+// ════════════════════════════════════════════════════════════
+let poseInstance;
+
+function setupPose() {
+  poseInstance = new Pose({
+    locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${f}`,
+  });
+  poseInstance.setOptions({
+    modelComplexity: 0,
+    smoothLandmarks: true,
+    minDetectionConfidence: 0.55,
+    minTrackingConfidence: 0.5,
+  });
+  poseInstance.onResults(onPoseResults);
+}
+
+function onPoseResults(results) {
+  poseProcessing = false;
+  if (results.poseLandmarks && results.poseLandmarks.length > 0) {
+    latestLandmarks = results.poseLandmarks;
+    poseDetected = true;
+    updateBellyPosition();
+    updateWristHistory();
+    checkSlap();
+  } else {
+    poseDetected = false;
+    latestLandmarks = null;
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// BELLY POSITION
+// ════════════════════════════════════════════════════════════
+function mirrorX(p) { return (1 - p.x) * canvas.width; }
+function mapY(p)    { return p.y * canvas.height; }
+
+function updateBellyPosition() {
+  const lm = latestLandmarks;
+  const ls = lm[11], rs = lm[12], lh = lm[23], rh = lm[24];
+
+  bellyCenter.x = (mirrorX(ls) + mirrorX(rs) + mirrorX(lh) + mirrorX(rh)) / 4;
+  bellyCenter.y = (mapY(ls) + mapY(rs) + mapY(lh) + mapY(rh)) / 4
+                + canvas.height * CONFIG.bellyDownNudge;
+
+  const shoulderDist = Math.hypot(mirrorX(ls) - mirrorX(rs), mapY(ls) - mapY(rs));
+  bellyRadius = shoulderDist * CONFIG.bellyRadiusFactor;
+}
+
+// ════════════════════════════════════════════════════════════
+// SLAP DETECTION
+// ════════════════════════════════════════════════════════════
+function updateWristHistory() {
+  const lm  = latestLandmarks;
+  const now = Date.now();
+  const wrists = { left: lm[15], right: lm[16] };
+
+  for (const [side, w] of Object.entries(wrists)) {
+    const wx = mirrorX(w), wy = mapY(w);
+    const dist = Math.hypot(wx - bellyCenter.x, wy - bellyCenter.y);
+    wristHistory[side].push({ dist, time: now });
+    if (wristHistory[side].length > 6) wristHistory[side].shift();
+  }
+}
+
+function checkSlap() {
+  if (gameState === 'start' || gameState === 'paused') return;
+
+  const now = Date.now();
+  if (now - lastSlapTime < CONFIG.debounceTime) return;
+
+  const threshold = bellyRadius * CONFIG.slapZoneFactor;
+
+  for (const side of ['left', 'right']) {
+    const hist = wristHistory[side];
+    if (hist.length < 4) continue;
+
+    const curr = hist[hist.length - 1];
+    const prev = hist[hist.length - 2];
+    if (!(prev.dist > threshold && curr.dist <= threshold)) continue;
+
+    const oldest   = hist[hist.length - 4];
+    const timeDelta = (curr.time - oldest.time) / 1000;
+    if (timeDelta <= 0) continue;
+
+    const velocity = (oldest.dist - curr.dist) / timeDelta;
+    if (velocity < CONFIG.minSlapVelocity) continue;
+
+    lastSlapTime = now;
+    onSlap(now);
+
+    bellyFlashTime = now;
+    const indicator = document.getElementById('belly-indicator');
+    indicator.style.transform = 'scale(1.3) rotate(5deg)';
+    setTimeout(() => { indicator.style.transform = ''; }, 150);
+    break;
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// JUDGMENT
+// ════════════════════════════════════════════════════════════
+function onSlap(slapTime) {
+  const slapGameTime = slapTime - gameClockOrigin - pauseOffset;
+
+  let nearestNote  = null;
+  let nearestDelta = Infinity;
+  for (const note of activeNotes) {
+    if (note.judged) continue;
+    const delta = Math.abs(slapGameTime - note.targetTime);
+    if (delta <= CONFIG.judgmentWindow && delta < nearestDelta) {
+      nearestDelta = delta;
+      nearestNote  = note;
+    }
+  }
+  if (!nearestNote) return;
+
+  nearestNote.judged = true;
+  const delta = Math.abs(slapGameTime - nearestNote.targetTime);
+
+  if (delta <= CONFIG.hitWindows.perfect) {
+    score += CONFIG.pointsPerfect;
+    combo++;
+    showJudgment('PERFECT!', '#ffff00', 48);
+    playSound('full');
+    spawnStinkEffect();
+  } else if (delta <= CONFIG.hitWindows.good) {
+    score += CONFIG.pointsGood;
+    combo++;
+    showJudgment('GOOD', '#88ff88', 36);
+    playSound('small');
+  } else if (delta <= CONFIG.hitWindows.bad) {
+    combo = 0;
+    showJudgment('BAD', '#888888', 28);
+  }
+  updateHUD();
+}
+
+function checkMisses() {
+  for (const note of activeNotes) {
+    if (note.judged) continue;
+    if (gameTime - note.targetTime > CONFIG.hitWindows.bad) {
+      note.judged = true;
+      combo = 0;
+      showJudgment('MISS', '#ff4444', 28);
+      updateHUD();
+    }
+  }
+}
+
+function showJudgment(text, color, size) {
+  judgmentDisplay = { text, color, size, time: Date.now() };
+}
+
+// ════════════════════════════════════════════════════════════
+// STINK EFFECTS
+// ════════════════════════════════════════════════════════════
+function spawnStinkEffect() {
+  stinkEffects.push({
+    start: Date.now(),
+    x: canvas.width / 2,
+    y: canvas.height * CONFIG.hitZoneY,
+    word: STINK_WORDS[Math.floor(Math.random() * STINK_WORDS.length)],
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// NOTE MANAGEMENT
+// ════════════════════════════════════════════════════════════
+function spawnNotesForLoop(loop) {
+  const loopOffset = loop * CONFIG.loopBeats * msPerBeat;
+  for (const beat of CONFIG.noteChart) {
+    activeNotes.push({
+      id: noteIdCounter++,
+      targetTime: (beat / CONFIG.bpm) * 60000 + loopOffset,
+      judged: false,
+    });
+  }
+}
+
+function maybeSpawnNextLoop() {
+  const nextLoop   = highestSpawnedLoop + 1;
+  const loopOffset = nextLoop * CONFIG.loopBeats * msPerBeat;
+  const firstTarget = (CONFIG.noteChart[0] / CONFIG.bpm) * 60000 + loopOffset;
+  if (gameTime >= firstTarget - CONFIG.travelTime - 500) {
+    highestSpawnedLoop = nextLoop;
+    spawnNotesForLoop(nextLoop);
+  }
+}
+
+function cleanupNotes() {
+  activeNotes = activeNotes.filter(n => gameTime - n.targetTime < 2000);
+}
+
+// ════════════════════════════════════════════════════════════
+// RENDERING
+// ════════════════════════════════════════════════════════════
+
+function drawWebcam() {
+  if (video.readyState < 2) return;
+  ctx.save();
+  ctx.scale(-1, 1);
+  ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+  ctx.restore();
+}
+
+function drawLane() {
+  const lx = (canvas.width - CONFIG.laneWidth) / 2;
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(lx, 0, CONFIG.laneWidth, canvas.height);
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(lx, 0); ctx.lineTo(lx, canvas.height);
+  ctx.moveTo(lx + CONFIG.laneWidth, 0); ctx.lineTo(lx + CONFIG.laneWidth, canvas.height);
+  ctx.stroke();
+}
+
+function drawHitZone() {
+  const hitY = canvas.height * CONFIG.hitZoneY;
+  const lx   = (canvas.width - CONFIG.laneWidth) / 2;
+
+  let pulse = 0.6;
+  if (gameState === 'playing' || gameState === 'countdown') {
+    const phase = (gameTime % msPerBeat + msPerBeat) % msPerBeat / msPerBeat;
+    pulse = 0.6 + 0.4 * Math.max(0, 1 - phase * 3);
+  }
+
+  ctx.save();
+  ctx.shadowColor = `rgba(255,255,100,${pulse})`;
+  ctx.shadowBlur  = 16;
+  ctx.strokeStyle = `rgba(255,255,100,${pulse})`;
+  ctx.lineWidth   = 4;
+  ctx.beginPath();
+  ctx.moveTo(lx, hitY);
+  ctx.lineTo(lx + CONFIG.laneWidth, hitY);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawNotes() {
+  const hitY   = canvas.height * CONFIG.hitZoneY;
+  const cx     = canvas.width / 2;
+
+  for (const note of activeNotes) {
+    if (note.judged) continue;
+    const progress = (gameTime - (note.targetTime - CONFIG.travelTime)) / CONFIG.travelTime;
+    if (progress < -0.05 || progress > 1.4) continue;
+
+    const ny = progress * hitY;
+    const timeToHit = note.targetTime - gameTime;
+    let sm = 1;
+    if (timeToHit >= 0 && timeToHit <= 200)
+      sm = 1 + 0.15 * Math.sin((1 - timeToHit / 200) * Math.PI);
+
+    const r = (CONFIG.noteSize / 2) * sm;
+
+    ctx.beginPath();
+    ctx.arc(cx, ny, r, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffaa33';
+    ctx.fill();
+    ctx.strokeStyle = '#ff8800';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(cx, ny + 2 * sm, 4 * sm, 0, Math.PI * 2);
+    ctx.fillStyle = '#cc6600';
+    ctx.fill();
+  }
+}
+
+function drawJudgment() {
+  if (!judgmentDisplay.text) return;
+  const elapsed = Date.now() - judgmentDisplay.time;
+  if (elapsed > 600) { judgmentDisplay.text = ''; return; }
+
+  const alpha = 1 - elapsed / 600;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.font = `bold ${judgmentDisplay.size}px 'Segoe UI',Arial,sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = judgmentDisplay.color;
+  ctx.shadowBlur = 24;
+  ctx.fillStyle = judgmentDisplay.color;
+  ctx.fillText(judgmentDisplay.text, canvas.width / 2, canvas.height * CONFIG.hitZoneY - 50);
+  ctx.restore();
+}
+
+function drawStinkEffects() {
+  const now = Date.now();
+  stinkEffects = stinkEffects.filter(e => now - e.start < 1200);
+
+  for (const e of stinkEffects) {
+    const t = (now - e.start) / 1200;
+    const a = 1 - t;
+
+    ctx.save();
+    ctx.globalAlpha = a * 0.65;
+    ctx.strokeStyle = '#88cc44';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 4; i++) {
+      const ox = (i - 1.5) * 18;
+      ctx.beginPath();
+      for (let s = 0; s < 35; s++) {
+        const py = e.y - t * 110 - s * 2;
+        const px = e.x + ox + Math.sin(s * 0.5 + i + (now - e.start) * 0.005) * 8;
+        s === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
+
+    ctx.globalAlpha = a;
+    ctx.font = 'bold 22px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#88cc44';
+    ctx.shadowColor = '#88cc44';
+    ctx.shadowBlur = 10;
+    ctx.fillText(e.word, e.x, e.y - 60 - t * 80);
+    ctx.restore();
+  }
+}
+
+function drawBellyOverlay() {
+  if (!poseDetected) return;
+
+  const elapsed = Date.now() - bellyFlashTime;
+  let alpha = 0.3, scale = 1;
+  if (elapsed < 300) {
+    const p = elapsed / 300;
+    alpha = 1 - p * 0.7;
+    scale = 1 + 0.15 * (1 - p);
+  }
+
+  const r = bellyRadius * scale;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.beginPath();
+  ctx.arc(bellyCenter.x, bellyCenter.y, r, 0, Math.PI * 2);
+  ctx.strokeStyle = '#ffcc88';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(bellyCenter.x, bellyCenter.y + r * 0.15, r * 0.08, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffcc88';
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawCountdown() {
+  const now = Date.now();
+  if (countdownStart === 0 || now > countdownEndTime) return;
+
+  const elapsed = now - countdownStart;
+  let text;
+  if      (elapsed < 1000) text = '3';
+  else if (elapsed < 2000) text = '2';
+  else if (elapsed < 3000) text = '1';
+  else                     text = 'GO!';
+
+  const phaseMs = elapsed < 3000 ? elapsed % 1000 : elapsed - 3000;
+  const pop = 1 + 0.3 * Math.max(0, 1 - phaseMs / 280);
+
+  ctx.save();
+  ctx.font = `bold ${Math.round(72 * pop)}px Arial`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = text === 'GO!' ? '#ffcc00' : '#ffffff';
+  ctx.shadowColor = text === 'GO!' ? '#ffcc00' : '#ffffff';
+  ctx.shadowBlur = 30;
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+  ctx.restore();
+}
+
+function drawNoPoseMessage() {
+  if (poseDetected) return;
+  ctx.save();
+  ctx.font = '22px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.fillText('Step into frame so the camera can see you!', canvas.width / 2, canvas.height / 2 + 80);
+  ctx.restore();
+}
+
+// ════════════════════════════════════════════════════════════
+// HUD
+// ════════════════════════════════════════════════════════════
+function updateHUD() {
+  document.getElementById('hud-score').textContent = score.toLocaleString();
+  const ce = document.getElementById('hud-combo');
+  if (combo > 1) { ce.style.display = 'block'; ce.textContent = `x${combo} COMBO`; }
+  else           { ce.style.display = 'none'; }
+
+  if (score > highScore) {
+    highScore = score;
+    localStorage.setItem('bellyHighScore', String(highScore));
+  }
+  document.getElementById('hud-highscore').textContent = 'HI: ' + highScore.toLocaleString();
+}
+
+// ════════════════════════════════════════════════════════════
+// GAME FLOW
+// ════════════════════════════════════════════════════════════
+function startGame() {
+  document.getElementById('start-overlay').style.display = 'none';
+  document.getElementById('pause-btn').style.display = 'block';
+
+  const firstBeatTime = (CONFIG.noteChart[0] / CONFIG.bpm) * 60000;
+  countdownStart  = Date.now();
+  countdownEndTime = countdownStart + 3500;
+  gameClockOrigin = countdownStart + 3000 - firstBeatTime;
+  pauseOffset     = 0;
+  gameState       = 'countdown';
+
+  score = 0; combo = 0;
+  activeNotes = []; noteIdCounter = 0;
+  highestSpawnedLoop = 0;
+  stinkEffects = [];
+  wristHistory.left = []; wristHistory.right = [];
+
+  spawnNotesForLoop(0);
+  updateHUD();
+}
+
+function pauseGame() {
+  if (gameState !== 'playing') return;
+  gameState  = 'paused';
+  pauseStart = Date.now();
+  document.getElementById('pause-overlay').style.display = 'flex';
+}
+
+function resumeGame() {
+  if (gameState !== 'paused') return;
+  pauseOffset += Date.now() - pauseStart;
+  gameState = 'playing';
+  document.getElementById('pause-overlay').style.display = 'none';
+}
+
+function quitGame() {
+  gameState = 'start';
+  document.getElementById('pause-overlay').style.display = 'none';
+  document.getElementById('start-overlay').style.display = 'flex';
+  document.getElementById('pause-btn').style.display = 'none';
+  activeNotes = []; stinkEffects = [];
+  score = 0; combo = 0;
+  updateHUD();
+}
+
+// ════════════════════════════════════════════════════════════
+// MAIN LOOP
+// ════════════════════════════════════════════════════════════
+function gameLoop(timestamp) {
+  requestAnimationFrame(gameLoop);
+
+  const dt = Math.min(timestamp - (lastFrameTime || timestamp), 100);
+  lastFrameTime = timestamp;
+
+  if (gameState === 'countdown') {
+    gameTime = Date.now() - gameClockOrigin - pauseOffset;
+    if (Date.now() - countdownStart >= 3000) gameState = 'playing';
+  } else if (gameState === 'playing') {
+    gameTime = Date.now() - gameClockOrigin - pauseOffset;
+    checkMisses();
+    maybeSpawnNextLoop();
+    cleanupNotes();
+  }
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawWebcam();
+  drawLane();
+  drawHitZone();
+
+  if (gameState !== 'start') {
+    drawNotes();
+    drawJudgment();
+    drawStinkEffects();
+  }
+
+  drawBellyOverlay();
+  drawCountdown();
+  if (gameState !== 'start') drawNoPoseMessage();
+
+  if (!poseProcessing && video.readyState >= 2) {
+    poseProcessing = true;
+    poseInstance.send({ image: video }).catch(() => { poseProcessing = false; });
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// EVENTS
+// ════════════════════════════════════════════════════════════
+document.getElementById('start-btn').addEventListener('click', startGame);
+document.getElementById('pause-btn').addEventListener('click', pauseGame);
+document.getElementById('resume-btn').addEventListener('click', resumeGame);
+document.getElementById('quit-btn').addEventListener('click', quitGame);
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (gameState === 'playing') pauseGame();
+    else if (gameState === 'paused') resumeGame();
+  }
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && gameState === 'playing') pauseGame();
+});
+
+document.getElementById('bpm-display').textContent = CONFIG.bpm;
+
+// ════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════
+async function init() {
+  loadAudio();
+  setupPose();
+  try { await setupCamera(); } catch (e) {
+    document.getElementById('start-overlay').querySelector('h1').textContent =
+      'Camera access required.\nPlease allow and reload.';
+    return;
+  }
+  updateHUD();
+  requestAnimationFrame(gameLoop);
+}
+
+init();
+</script>
+</body>
+</html>
