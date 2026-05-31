@@ -1,0 +1,1677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YOU MUST VOTE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111;
+      --border: #2a2a2a;
+      --accent: #e5ff00;
+      --accent2: #ff2d55;
+      --text: #f0f0f0;
+      --muted: #555;
+      --card-bg: #141414;
+      --win-glow: 0 0 30px rgba(229, 255, 0, 0.35);
+      --lose-glow: 0 0 30px rgba(255, 45, 85, 0.25);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Share Tech Mono', monospace;
+    }
+
+    /* ── HEADER ────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 28px;
+      border-bottom: 2px solid var(--border);
+      background: #0c0c0c;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      font-family: 'Black Ops One', sans-serif;
+      font-size: 1.6rem;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      text-transform: uppercase;
+      line-height: 1;
+    }
+    .logo span { color: var(--accent2); }
+
+    .vote-counter {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-align: right;
+    }
+    .vote-counter strong {
+      display: block;
+      font-size: 1.5rem;
+      color: var(--text);
+      font-family: 'Black Ops One', sans-serif;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── CATEGORY TAG LINE ─────────────────────────────── */
+    #matchup-info {
+      text-align: center;
+      padding: 14px 20px 0;
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    #matchup-info .vs-cats {
+      color: var(--accent);
+    }
+
+    /* ── ARENA ─────────────────────────────────────────── */
+    #arena {
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      gap: 0;
+      padding: 28px 16px;
+      max-width: 1080px;
+      margin: 0 auto;
+    }
+
+    /* ── CARD ──────────────────────────────────────────── */
+    .card {
+      flex: 1;
+      max-width: 440px;
+      background: var(--card-bg);
+      border: 1.5px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.15s, transform 0.12s;
+      user-select: none;
+    }
+    .card:first-child { border-right: none; }
+
+    .card:hover {
+      border-color: var(--accent);
+      transform: scaleY(1.008);
+      z-index: 2;
+    }
+
+    .card.winner {
+      border-color: var(--accent) !important;
+      box-shadow: var(--win-glow);
+    }
+    .card.loser {
+      border-color: var(--accent2) !important;
+      box-shadow: var(--lose-glow);
+      opacity: 0.6;
+    }
+
+    /* category pill */
+    .cat-pill {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      font-size: 0.6rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      background: rgba(0,0,0,0.7);
+      border: 1px solid var(--border);
+      color: var(--accent);
+      padding: 3px 8px;
+      z-index: 3;
+      backdrop-filter: blur(4px);
+    }
+
+    /* image container */
+    .img-wrap {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      overflow: hidden;
+      background: #0d0d0d;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      transition: transform 0.25s;
+    }
+    .card:hover .img-wrap img { transform: scale(1.035); }
+
+    /* fallback / loading state */
+    .img-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .img-placeholder .big-letter {
+      font-family: 'Black Ops One', sans-serif;
+      font-size: 5rem;
+      color: #222;
+      line-height: 1;
+    }
+
+    /* result overlay */
+    .result-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Black Ops One', sans-serif;
+      font-size: 2.8rem;
+      letter-spacing: 0.05em;
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .card.winner .result-overlay {
+      opacity: 1;
+      color: var(--accent);
+      text-shadow: 0 0 20px var(--accent);
+      background: rgba(0,0,0,0.45);
+    }
+    .card.loser .result-overlay {
+      opacity: 1;
+      color: var(--accent2);
+      text-shadow: 0 0 20px var(--accent2);
+      background: rgba(0,0,0,0.45);
+    }
+
+    /* caption */
+    .caption {
+      padding: 16px 18px 20px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      border-top: 1px solid var(--border);
+    }
+
+    .entry-name {
+      font-family: 'Black Ops One', sans-serif;
+      font-size: 1.25rem;
+      letter-spacing: 0.04em;
+      line-height: 1.2;
+      color: var(--text);
+    }
+
+    .entry-meta {
+      margin-top: 5px;
+      font-size: 0.65rem;
+      color: var(--muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .elo-badge {
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+    }
+    .elo-badge span { color: var(--text); }
+
+    /* ── VS DIVIDER ────────────────────────────────────── */
+    .vs-divider {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 56px;
+      flex-shrink: 0;
+      background: var(--bg);
+      border-top: 1.5px solid var(--border);
+      border-bottom: 1.5px solid var(--border);
+      z-index: 5;
+    }
+
+    .vs-text {
+      font-family: 'Black Ops One', sans-serif;
+      font-size: 1.1rem;
+      color: var(--accent2);
+      letter-spacing: 0.1em;
+      writing-mode: vertical-lr;
+      text-orientation: mixed;
+      transform: rotate(180deg);
+    }
+
+    /* ── CONTROLS ──────────────────────────────────────── */
+    #controls {
+      text-align: center;
+      padding: 8px 20px 28px;
+    }
+
+    #skip-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.75rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 8px 22px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    #skip-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── FILTER BAR ────────────────────────────────────── */
+    #filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: center;
+      padding: 0 16px 24px;
+      max-width: 1080px;
+      margin: 0 auto;
+    }
+
+    .filter-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.62rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 5px 13px;
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .filter-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(229, 255, 0, 0.05);
+    }
+    .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── LEADERBOARD ───────────────────────────────────── */
+    #leaderboard-section {
+      max-width: 1080px;
+      margin: 0 auto 60px;
+      padding: 0 16px;
+    }
+
+    .section-title {
+      font-family: 'Black Ops One', sans-serif;
+      font-size: 0.9rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+      margin-bottom: 16px;
+    }
+    .section-title span { color: var(--accent); }
+
+    #leaderboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+    }
+
+    .lb-item {
+      background: var(--card-bg);
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .lb-rank {
+      font-family: 'Black Ops One', sans-serif;
+      font-size: 1.1rem;
+      color: var(--border);
+      width: 28px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .lb-item:nth-child(1) .lb-rank { color: var(--accent); }
+    .lb-item:nth-child(2) .lb-rank { color: #ccc; }
+    .lb-item:nth-child(3) .lb-rank { color: #c8964a; }
+
+    .lb-thumb {
+      width: 38px;
+      height: 38px;
+      object-fit: cover;
+      background: #1a1a1a;
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+    }
+
+    .lb-info { flex: 1; min-width: 0; }
+    .lb-name {
+      font-size: 0.72rem;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text);
+    }
+    .lb-cat {
+      font-size: 0.58rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .lb-elo {
+      font-family: 'Black Ops One', sans-serif;
+      font-size: 0.85rem;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    /* ── HISTORY FEED ──────────────────────────────────── */
+    #history-section {
+      max-width: 1080px;
+      margin: 0 auto 60px;
+      padding: 0 16px;
+    }
+
+    #history-feed {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    .history-item {
+      background: var(--card-bg);
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      font-size: 0.65rem;
+      letter-spacing: 0.06em;
+    }
+    .history-winner { color: var(--accent); }
+    .history-loser { color: var(--muted); text-align: right; }
+    .history-sep { color: var(--accent2); text-align: center; font-size: 0.6rem; }
+
+    /* ── TOAST ─────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--accent);
+      color: #000;
+      font-family: 'Black Ops One', sans-serif;
+      font-size: 0.9rem;
+      letter-spacing: 0.1em;
+      padding: 10px 24px;
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 999;
+      pointer-events: none;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── LOADING ───────────────────────────────────────── */
+    #loading-screen {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      z-index: 999;
+    }
+    .loading-logo {
+      font-family: 'Black Ops One', sans-serif;
+      font-size: 3rem;
+      color: var(--accent);
+      letter-spacing: 0.1em;
+    }
+    .loading-bar-wrap {
+      width: 200px;
+      height: 3px;
+      background: var(--border);
+      overflow: hidden;
+    }
+    .loading-bar {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.4s;
+    }
+    .loading-msg {
+      font-size: 0.65rem;
+      letter-spacing: 0.15em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    /* ── TRANSITION OVERLAY ────────────────────────────── */
+    #transition-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--accent);
+      transform: scaleX(0);
+      transform-origin: left;
+      z-index: 500;
+      pointer-events: none;
+    }
+
+    /* ── RESPONSIVE ────────────────────────────────────── */
+    @media (max-width: 600px) {
+      #arena { flex-direction: column; gap: 0; padding: 16px 10px; }
+      .card:first-child { border-right: 1.5px solid var(--border); border-bottom: none; }
+      .vs-divider { flex-direction: row; width: 100%; height: 40px; border-left: 1.5px solid var(--border); border-right: 1.5px solid var(--border); }
+      .vs-text { writing-mode: unset; transform: none; }
+      .card { max-width: 100%; }
+      .img-wrap { aspect-ratio: 4/3; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Loading Screen -->
+<div id="loading-screen">
+  <div class="loading-logo">YOU MUST VOTE</div>
+  <div class="loading-bar-wrap"><div class="loading-bar" id="loading-bar"></div></div>
+  <div class="loading-msg" id="loading-msg">Loading entries…</div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Transition overlay -->
+<div id="transition-overlay"></div>
+
+<!-- MAIN -->
+<header>
+  <div class="logo">You <span>Must</span> Vote</div>
+  <div class="vote-counter">
+    <strong id="total-votes">0</strong>
+    TOTAL VOTES
+  </div>
+</header>
+
+<div id="matchup-info">
+  <span class="vs-cats" id="cat-left">—</span>
+  &nbsp;vs&nbsp;
+  <span class="vs-cats" id="cat-right">—</span>
+</div>
+
+<!-- Arena -->
+<div id="arena">
+  <div class="card" id="card-left" onclick="vote('left')">
+    <div class="cat-pill" id="pill-left">—</div>
+    <div class="img-wrap">
+      <div class="img-placeholder" id="placeholder-left">
+        <div class="big-letter" id="initial-left">?</div>
+        <span>Loading…</span>
+      </div>
+      <img id="img-left" src="" alt="" style="display:none" />
+      <div class="result-overlay" id="overlay-left"></div>
+    </div>
+    <div class="caption">
+      <div class="entry-name" id="name-left">—</div>
+      <div class="entry-meta" id="meta-left">—</div>
+      <div class="elo-badge">ELO <span id="elo-left">1200</span></div>
+    </div>
+  </div>
+
+  <div class="vs-divider">
+    <div class="vs-text">VS</div>
+  </div>
+
+  <div class="card" id="card-right" onclick="vote('right')">
+    <div class="cat-pill" id="pill-right">—</div>
+    <div class="img-wrap">
+      <div class="img-placeholder" id="placeholder-right">
+        <div class="big-letter" id="initial-right">?</div>
+        <span>Loading…</span>
+      </div>
+      <img id="img-right" src="" alt="" style="display:none" />
+      <div class="result-overlay" id="overlay-right"></div>
+    </div>
+    <div class="caption">
+      <div class="entry-name" id="name-right">—</div>
+      <div class="entry-meta" id="meta-right">—</div>
+      <div class="elo-badge">ELO <span id="elo-right">1200</span></div>
+    </div>
+  </div>
+</div>
+
+<div id="controls">
+  <button id="skip-btn" onclick="nextMatchup()">↻ SKIP</button>
+</div>
+
+<!-- Category filter -->
+<div id="filter-bar"></div>
+
+<!-- Leaderboard -->
+<div id="leaderboard-section">
+  <div class="section-title">🏆 <span>Top Rated</span> Entries</div>
+  <div id="leaderboard"></div>
+</div>
+
+<!-- History -->
+<div id="history-section">
+  <div class="section-title">⚡ <span>Recent</span> Battles</div>
+  <div id="history-feed"></div>
+</div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────
+let entries = [];
+let eloMap = {}; // name -> elo
+let totalVotes = 0;
+let history = [];
+let currentLeft = null;
+let currentRight = null;
+let canVote = true;
+let activeFilter = 'ALL';
+
+const CATEGORIES = ['ALL','People','Places','Body Parts','Concepts','Companies','Foods','Subreddits','YouTube Videos','Cars','Things','Animals'];
+
+// ── WIKIPEDIA IMAGE RESOLUTION ─────────────────────────────────────────
+// Converts a FilePath URL to a proper thumbnail via Wikipedia API
+function wikiThumb(url, size = 500) {
+  if (!url) return '';
+  // Extract filename from Special:FilePath/...
+  const match = url.match(/Special:FilePath\/(.+)$/i);
+  if (!match) return url;
+  const filename = decodeURIComponent(match[1]);
+  const encoded = encodeURIComponent(filename).replace(/%20/g, '_').replace(/%2F/g, '/');
+  return `https://en.wikipedia.org/w/index.php?title=Special:Redirect/file/${encoded}&width=${size}`;
+}
+
+// ── LOAD DATA ─────────────────────────────────────────────────────────
+async function loadData() {
+  const bar = document.getElementById('loading-bar');
+  const msg = document.getElementById('loading-msg');
+
+  try {
+    bar.style.width = '30%';
+    msg.textContent = 'Fetching entries…';
+
+    // Try to load local data.json — works when served together
+    let data;
+    try {
+      const res = await fetch('data.json');
+      data = await res.json();
+    } catch(e) {
+      // Fallback: use inline sample if fetch fails (e.g. opened as file://)
+      data = FALLBACK_DATA;
+    }
+
+    bar.style.width = '70%';
+    msg.textContent = 'Building arena…';
+    entries = data;
+
+    // Initialize ELO for all entries
+    entries.forEach(e => {
+      const key = e.name + '|' + e.category;
+      if (!eloMap[key]) eloMap[key] = 1200;
+    });
+
+    // Load persisted data
+    loadPersisted();
+
+    bar.style.width = '100%';
+    msg.textContent = 'Ready!';
+
+    setTimeout(() => {
+      document.getElementById('loading-screen').style.display = 'none';
+      buildFilterBar();
+      nextMatchup();
+      renderLeaderboard();
+    }, 300);
+
+  } catch(err) {
+    msg.textContent = 'Error: ' + err.message;
+  }
+}
+
+// ── PERSISTENCE ───────────────────────────────────────────────────────
+function loadPersisted() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('ymv_state') || '{}');
+    if (saved.eloMap) {
+      Object.assign(eloMap, saved.eloMap);
+    }
+    totalVotes = saved.totalVotes || 0;
+    history = saved.history || [];
+    document.getElementById('total-votes').textContent = totalVotes;
+    renderHistory();
+  } catch(e) {}
+}
+
+function persist() {
+  try {
+    localStorage.setItem('ymv_state', JSON.stringify({ eloMap, totalVotes, history: history.slice(0, 200) }));
+  } catch(e) {}
+}
+
+// ── FILTER BAR ────────────────────────────────────────────────────────
+function buildFilterBar() {
+  const bar = document.getElementById('filter-bar');
+  CATEGORIES.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn' + (cat === 'ALL' ? ' active' : '');
+    btn.textContent = cat;
+    btn.onclick = () => setFilter(cat);
+    bar.appendChild(btn);
+  });
+}
+
+function setFilter(cat) {
+  activeFilter = cat;
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent === cat);
+  });
+  nextMatchup();
+  renderLeaderboard();
+}
+
+function filteredEntries() {
+  if (activeFilter === 'ALL') return entries;
+  return entries.filter(e => e.category === activeFilter);
+}
+
+// ── MATCHUP ───────────────────────────────────────────────────────────
+function pickTwo() {
+  const pool = filteredEntries();
+  if (pool.length < 2) return [entries[0], entries[1]]; // fallback
+
+  // Group by category
+  const cats = [...new Set(pool.map(e => e.category))];
+
+  // Pick two DIFFERENT categories (unless only one category active)
+  let catA, catB;
+  if (cats.length >= 2 && activeFilter === 'ALL') {
+    const shuffledCats = shuffle([...cats]);
+    catA = shuffledCats[0];
+    catB = shuffledCats[1];
+  } else {
+    // Same category filter — just pick random two entries
+    catA = cats[0];
+    catB = cats[0];
+  }
+
+  const poolA = pool.filter(e => e.category === catA);
+  const poolB = pool.filter(e => e.category === catB);
+
+  const a = poolA[Math.floor(Math.random() * poolA.length)];
+  let b;
+  if (catA !== catB) {
+    b = poolB[Math.floor(Math.random() * poolB.length)];
+  } else {
+    // Same category, make sure we pick a different entry
+    const remaining = poolB.filter(e => e.name !== a.name);
+    if (remaining.length === 0) return [entries[0], entries[1]];
+    b = remaining[Math.floor(Math.random() * remaining.length)];
+  }
+  return [a, b];
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+async function nextMatchup() {
+  if (!entries.length) return;
+  canVote = true;
+
+  // Reset card states
+  ['left','right'].forEach(side => {
+    document.getElementById('card-' + side).classList.remove('winner','loser');
+    document.getElementById('overlay-' + side).textContent = '';
+  });
+
+  const [a, b] = pickTwo();
+  currentLeft = a;
+  currentRight = b;
+
+  renderCard('left', a);
+  renderCard('right', b);
+
+  // Update matchup info
+  document.getElementById('cat-left').textContent = a.category.toUpperCase();
+  document.getElementById('cat-right').textContent = b.category.toUpperCase();
+}
+
+function renderCard(side, entry) {
+  const key = entry.name + '|' + entry.category;
+  document.getElementById('pill-' + side).textContent = entry.category;
+  document.getElementById('name-' + side).textContent = entry.name;
+  document.getElementById('meta-' + side).textContent = entry.category.toUpperCase();
+  document.getElementById('elo-' + side).textContent = Math.round(eloMap[key] || 1200);
+  document.getElementById('initial-' + side).textContent = entry.name.charAt(0).toUpperCase();
+
+  // Show placeholder while image loads
+  const placeholder = document.getElementById('placeholder-' + side);
+  const img = document.getElementById('img-' + side);
+  placeholder.style.display = 'flex';
+  img.style.display = 'none';
+  img.src = '';
+
+  // Resolve Wikipedia thumbnail
+  const thumbUrl = wikiThumb(entry.image, 500);
+  const newImg = new Image();
+  newImg.onload = () => {
+    img.src = thumbUrl;
+    img.alt = entry.name;
+    img.style.display = 'block';
+    placeholder.style.display = 'none';
+  };
+  newImg.onerror = () => {
+    // Keep placeholder visible on error
+    placeholder.querySelector('span').textContent = 'No image';
+  };
+  newImg.src = thumbUrl;
+}
+
+// ── VOTE ──────────────────────────────────────────────────────────────
+function vote(winner) {
+  if (!canVote) return;
+  canVote = false;
+
+  const winEntry = winner === 'left' ? currentLeft : currentRight;
+  const loseEntry = winner === 'left' ? currentRight : currentLeft;
+  const winSide = winner;
+  const loseSide = winner === 'left' ? 'right' : 'left';
+
+  // ELO update
+  const winKey = winEntry.name + '|' + winEntry.category;
+  const loseKey = loseEntry.name + '|' + loseEntry.category;
+  const [newWin, newLose] = calcElo(eloMap[winKey] || 1200, eloMap[loseKey] || 1200);
+  eloMap[winKey] = newWin;
+  eloMap[loseKey] = newLose;
+
+  // Update ELO display
+  document.getElementById('elo-' + winSide).textContent = Math.round(newWin);
+  document.getElementById('elo-' + loseSide).textContent = Math.round(newLose);
+
+  // Card animations
+  document.getElementById('card-' + winSide).classList.add('winner');
+  document.getElementById('card-' + loseSide).classList.add('loser');
+
+  // Vote count
+  totalVotes++;
+  document.getElementById('total-votes').textContent = totalVotes;
+
+  // History
+  history.unshift({ winner: winEntry.name, loser: loseEntry.name, winCat: winEntry.category, loseCat: loseEntry.category });
+  renderHistory();
+
+  // Persist
+  persist();
+  renderLeaderboard();
+
+  showToast(winEntry.name.toUpperCase() + ' WINS');
+
+  // Auto-advance
+  setTimeout(() => nextMatchup(), 1400);
+}
+
+// ── ELO ───────────────────────────────────────────────────────────────
+function calcElo(rA, rB, k = 32) {
+  const expA = 1 / (1 + Math.pow(10, (rB - rA) / 400));
+  const newA = rA + k * (1 - expA);
+  const newB = rB + k * (0 - (1 - expA));
+  return [Math.round(newA), Math.round(newB)];
+}
+
+// ── LEADERBOARD ───────────────────────────────────────────────────────
+function renderLeaderboard() {
+  const lb = document.getElementById('leaderboard');
+  lb.innerHTML = '';
+
+  const pool = filteredEntries();
+  const ranked = [...pool].sort((a, b) => {
+    const ka = a.name + '|' + a.category;
+    const kb = b.name + '|' + b.category;
+    return (eloMap[kb] || 1200) - (eloMap[ka] || 1200);
+  }).slice(0, 30);
+
+  ranked.forEach((entry, i) => {
+    const key = entry.name + '|' + entry.category;
+    const elo = Math.round(eloMap[key] || 1200);
+    const div = document.createElement('div');
+    div.className = 'lb-item';
+    const thumbUrl = wikiThumb(entry.image, 80);
+    div.innerHTML = `
+      <div class="lb-rank">${i + 1}</div>
+      <img class="lb-thumb" src="${thumbUrl}" alt="${entry.name}" onerror="this.style.visibility='hidden'" />
+      <div class="lb-info">
+        <div class="lb-name">${entry.name}</div>
+        <div class="lb-cat">${entry.category}</div>
+      </div>
+      <div class="lb-elo">${elo}</div>
+    `;
+    lb.appendChild(div);
+  });
+}
+
+// ── HISTORY ───────────────────────────────────────────────────────────
+function renderHistory() {
+  const feed = document.getElementById('history-feed');
+  feed.innerHTML = '';
+  history.slice(0, 50).forEach(h => {
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    div.innerHTML = `
+      <div class="history-winner">▲ ${h.winner} <span style="color:var(--muted);font-size:0.58rem">${h.winCat}</span></div>
+      <div class="history-sep">beat</div>
+      <div class="history-loser"><span style="color:var(--muted);font-size:0.58rem">${h.loseCat}</span> ${h.loser} ▼</div>
+    `;
+    feed.appendChild(div);
+  });
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1200);
+}
+
+// ── KEYBOARD SHORTCUTS ────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') vote('left');
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') vote('right');
+  if (e.key === 's' || e.key === 'S' || e.key === ' ') { e.preventDefault(); nextMatchup(); }
+});
+
+// ── INLINE FALLBACK DATA (small subset) ───────────────────────────────
+const FALLBACK_DATA = [
+  {"name": "George Washington", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Gilbert_Stuart_Williamstown_Portrait_of_George_Washington.jpg", "category": "People"},
+  {"name": "John Adams", "image": "https://en.wikipedia.org/wiki/Special:FilePath/John_Adams.jpg", "category": "People"},
+  {"name": "Thomas Jefferson", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Rembrandt_Peale_-_Thomas_Jefferson.jpg", "category": "People"},
+  {"name": "James Madison", "image": "https://en.wikipedia.org/wiki/Special:FilePath/James_Madison.jpg", "category": "People"},
+  {"name": "James Monroe", "image": "https://en.wikipedia.org/wiki/Special:FilePath/James_Monroe_White_House_portrait_1819.jpg", "category": "People"},
+  {"name": "John Quincy Adams", "image": "https://en.wikipedia.org/wiki/Special:FilePath/John_Quincy_Adams_by_George_Caleb_Bingham.jpg", "category": "People"},
+  {"name": "Andrew Jackson", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Andrew_jackson_head.jpg", "category": "People"},
+  {"name": "Martin Van Buren", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Martin_Van_Buren_by_Mathew_Brady_c1855-58.jpg", "category": "People"},
+  {"name": "William Henry Harrison", "image": "https://en.wikipedia.org/wiki/Special:FilePath/William_Henry_Harrison_daguerreotype_edit.jpg", "category": "People"},
+  {"name": "John Tyler", "image": "https://en.wikipedia.org/wiki/Special:FilePath/John_Tyler.jpg", "category": "People"},
+  {"name": "James K. Polk", "image": "https://en.wikipedia.org/wiki/Special:FilePath/James_Knox_Polk_by_George_Peter_Alexander_Healy,_1858.jpg", "category": "People"},
+  {"name": "Zachary Taylor", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Zachary_Taylor_restored_and_cropped.jpg", "category": "People"},
+  {"name": "Millard Fillmore", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Millard_Fillmore.jpg", "category": "People"},
+  {"name": "Franklin Pierce", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Franklin_Pierce.jpg", "category": "People"},
+  {"name": "James Buchanan", "image": "https://en.wikipedia.org/wiki/Special:FilePath/James_Buchanan_-_Brady-Handy.jpg", "category": "People"},
+  {"name": "Abraham Lincoln", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Abraham_Lincoln_O-77_matte_collodion_print.jpg", "category": "People"},
+  {"name": "Andrew Johnson", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Andrew_Johnson_photo_portrait_head_and_shoulders,_c1870-1880.jpg", "category": "People"},
+  {"name": "Ulysses S. Grant", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Ulysses_Grant_1870-1880.jpg", "category": "People"},
+  {"name": "Rutherford B. Hayes", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Rutherford_hayes_photo_portrait.jpg", "category": "People"},
+  {"name": "James A. Garfield", "image": "https://en.wikipedia.org/wiki/Special:FilePath/James_Abram_Garfield,_photo_portrait_seated.jpg", "category": "People"},
+  {"name": "Chester A. Arthur", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Chester_Arthur.jpg", "category": "People"},
+  {"name": "Grover Cleveland", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Grover_Cleveland_-_NARA_-_518139.jpg", "category": "People"},
+  {"name": "Benjamin Harrison", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Benjamin_Harrison,_head_and_shoulders_bw_photo,_1896.jpg", "category": "People"},
+  {"name": "William McKinley", "image": "https://en.wikipedia.org/wiki/Special:FilePath/William_McKinley.jpg", "category": "People"},
+  {"name": "Theodore Roosevelt", "image": "https://en.wikipedia.org/wiki/Special:FilePath/President_Theodore_Roosevelt,_1904.jpg", "category": "People"},
+  {"name": "William Howard Taft", "image": "https://en.wikipedia.org/wiki/Special:FilePath/William_Howard_Taft_-_Harris_%26_Ewing.jpg", "category": "People"},
+  {"name": "Woodrow Wilson", "image": "https://en.wikipedia.org/wiki/Special:FilePath/President_Woodrow_Wilson_portrait_December_2_1912.jpg", "category": "People"},
+  {"name": "Warren G. Harding", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Warren_G_Harding-Harris_%26_Ewing.jpg", "category": "People"},
+  {"name": "Calvin Coolidge", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Calvin_Coolidge.jpg", "category": "People"},
+  {"name": "Herbert Hoover", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Herbert_Hoover.jpg", "category": "People"},
+  {"name": "Franklin D. Roosevelt", "image": "https://en.wikipedia.org/wiki/Special:FilePath/FDR_in_1933.jpg", "category": "People"},
+  {"name": "Harry S. Truman", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Harry-truman.jpg", "category": "People"},
+  {"name": "Dwight D. Eisenhower", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Dwight_D._Eisenhower,_official_photo_portrait,_May_29,_1959.jpg", "category": "People"},
+  {"name": "John F. Kennedy", "image": "https://en.wikipedia.org/wiki/Special:FilePath/John_F._Kennedy,_White_House_color_photo_portrait.jpg", "category": "People"},
+  {"name": "Lyndon B. Johnson", "image": "https://en.wikipedia.org/wiki/Special:FilePath/37_Lyndon_Johnson_3x4.jpg", "category": "People"},
+  {"name": "Richard Nixon", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Richard_M._Nixon,_ca._1935_-_1982_-_NARA_-_530679.jpg", "category": "People"},
+  {"name": "Gerald Ford", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Gerald_Ford.jpg", "category": "People"},
+  {"name": "Jimmy Carter", "image": "https://en.wikipedia.org/wiki/Special:FilePath/JimmyCarterPortrait2.jpg", "category": "People"},
+  {"name": "Ronald Reagan", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Official_Portrait_of_President_Reagan_1981.jpg", "category": "People"},
+  {"name": "George H. W. Bush", "image": "https://en.wikipedia.org/wiki/Special:FilePath/George_H._W._Bush,_President_of_the_United_States,_1989_official_portrait.jpg", "category": "People"},
+  {"name": "Bill Clinton", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Bill_Clinton.jpg", "category": "People"},
+  {"name": "George W. Bush", "image": "https://en.wikipedia.org/wiki/Special:FilePath/George-W-Bush.jpeg", "category": "People"},
+  {"name": "Barack Obama", "image": "https://en.wikipedia.org/wiki/Special:FilePath/President_Barack_Obama.jpg", "category": "People"},
+  {"name": "Donald Trump", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Donald_Trump_official_portrait.jpg", "category": "People"},
+  {"name": "Joe Biden", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Official_Portrait_of_President_Biden.jpg", "category": "People"},
+  {"name": "Benjamin Netanyahu", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Benjamin_Netanyahu_portrait.jpg", "category": "People"},
+  {"name": "Chief Keef", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Chief_Keef_2013.jpg", "category": "People"},
+  {"name": "King Von", "image": "https://en.wikipedia.org/wiki/Special:FilePath/King_Von_(cropped).jpg", "category": "People"},
+  {"name": "Lil Durk", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Lil_Durk_(cropped).jpg", "category": "People"},
+  {"name": "Pooh Shiesty", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Pooh_Shiesty.jpg", "category": "People"},
+  {"name": "Tay-K", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Tay-K.jpg", "category": "People"},
+  {"name": "Polo G", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Polo_G_(cropped).jpg", "category": "People"},
+  {"name": "Taylor Swift", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Taylor_Swift_at_the_2023_MTV_Video_Music_Awards_(2).png", "category": "People"},
+  {"name": "Beyoncé", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Beyonc%C3%A9_at_The_Lion_King_European_Premiere_2019.png", "category": "People"},
+  {"name": "Drake", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Drake_on_stage.jpg", "category": "People"},
+  {"name": "Kendrick Lamar", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Kendrick_Lamar_-_Openair_Frauenfeld_2019_12.jpg", "category": "People"},
+  {"name": "Rihanna", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Rihanna_-_777_Tour_-_7_Countries_7_Days_-_Pepsi_Billboard.jpg", "category": "People"},
+  {"name": "Eminem", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Eminem_-_Concert_for_Valor_in_Washington,_D.C._Nov._11,_2014_(2)_(Cropped).jpg", "category": "People"},
+  {"name": "Lady Gaga", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Lady_Gaga_2,_2013.jpg", "category": "People"},
+  {"name": "Justin Bieber", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Justin_Bieber_in_2015.jpg", "category": "People"},
+  {"name": "Ariana Grande", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Ariana_Grande_Grammys_Red_Carpet_2020.png", "category": "People"},
+  {"name": "The Weeknd", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Abel_Tesfaye_2015.jpg", "category": "People"},
+  {"name": "Bruno Mars", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Bruno_Mars_2016.jpg", "category": "People"},
+  {"name": "Ed Sheeran", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Ed_Sheeran-6.jpg", "category": "People"},
+  {"name": "Billie Eilish", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Billie_Eilish_2019_by_Glenn_Francis.jpg", "category": "People"},
+  {"name": "Post Malone", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Post_Malone_2019.jpg", "category": "People"},
+  {"name": "Travis Scott", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Travis_Scott_2018.jpg", "category": "People"},
+  {"name": "Elon Musk", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Elon_Musk_Royal_Society_(crop2).jpg", "category": "People"},
+  {"name": "Jeff Bezos", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Jeff_Bezos_visits_LAAFB_SMC_(3908618).jpg", "category": "People"},
+  {"name": "Mark Zuckerberg", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Mark_Zuckerberg_F8_2019_Keynote_(32830578717)_(cropped).jpg", "category": "People"},
+  {"name": "Bill Gates", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Bill_Gates_2017_(cropped).jpg", "category": "People"},
+  {"name": "Warren Buffett", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Warren_Buffett_at_the_2015_SelectUSA_Investment_Summit.jpg", "category": "People"},
+  {"name": "Tim Cook", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Tim_Cook_2019_cropped.jpg", "category": "People"},
+  {"name": "Sundar Pichai", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Sundar_Pichai_2015.png", "category": "People"},
+  {"name": "Satya Nadella", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Satya_Nadella.jpg", "category": "People"},
+  {"name": "Jensen Huang", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Jensen_Huang_at_NVIDIA_GTC_2024.jpg", "category": "People"},
+  {"name": "Adolf Hitler", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Bundesarchiv_Bild_183-H1216-0500-002,_Adolf_Hitler.jpg", "category": "People"},
+  {"name": "Joseph Stalin", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Stalin_1943.jpg", "category": "People"},
+  {"name": "Mao Zedong", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Mao_Zedong_portrait.jpg", "category": "People"},
+  {"name": "Kim Jong-un", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Kim_Jong-un_April_2019_(cropped).jpg", "category": "People"},
+  {"name": "Vladimir Putin", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Vladimir_Putin_(2023-02-21)_(cropped).jpg", "category": "People"},
+  {"name": "Saddam Hussein", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Saddam_Hussein_at_trial,_July_2004-edit1.jpg", "category": "People"},
+  {"name": "Muammar Gaddafi", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Muammar_al-Gaddafi_at_the_AU_summit.jpg", "category": "People"},
+  {"name": "Fidel Castro", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Fidel_Castro.jpg", "category": "People"},
+  {"name": "Pol Pot", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Pol_Pot.jpg", "category": "People"},
+  {"name": "Idi Amin", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Idi_Amin_cropped.jpg", "category": "People"},
+  {"name": "Che Guevara", "image": "https://en.wikipedia.org/wiki/Special:FilePath/CheHigh.jpg", "category": "People"},
+  {"name": "Nelson Mandela", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Nelson_Mandela-2008_(edit).jpg", "category": "People"},
+  {"name": "Mahatma Gandhi", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Mahatma-Gandhi,_studio,_1931.jpg", "category": "People"},
+  {"name": "Malcolm X", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Malcolm_X_NYWTS_2.jpg", "category": "People"},
+  {"name": "Martin Luther King Jr.", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Martin_Luther_King,_Jr..jpg", "category": "People"},
+  {"name": "Leon Trotsky", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Leon_Trotsky.jpg", "category": "People"},
+  {"name": "Rosa Parks", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Rosa_Parks_1955.jpg", "category": "People"},
+  {"name": "Dwayne Johnson", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Dwayne_Johnson_2,_2013.jpg", "category": "People"},
+  {"name": "Leonardo DiCaprio", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Leonardo_DiCaprio_2014.jpg", "category": "People"},
+  {"name": "Tom Hanks", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Tom_Hanks_2014.jpg", "category": "People"},
+  {"name": "Meryl Streep", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Meryl_Streep_2012.jpg", "category": "People"},
+  {"name": "Brad Pitt", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Brad_Pitt_2019_by_Glenn_Francis.jpg", "category": "People"},
+  {"name": "Scarlett Johansson", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Scarlett_Johansson_by_Gage_Skidmore_2_(cropped).jpg", "category": "People"},
+  {"name": "Denzel Washington", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Denzel_Washington.jpg", "category": "People"},
+  {"name": "Jennifer Lawrence", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Jennifer_Lawrence_at_the_83rd_Academy_Awards.jpg", "category": "People"},
+  {"name": "Robert Downey Jr.", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Robert_Downey_Jr_2014_Comic_Con_(cropped).jpg", "category": "People"},
+  {"name": "Zendaya", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Zendaya_2019_by_Glenn_Francis.jpg", "category": "People"},
+  {"name": "Michael Jackson", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Michael_Jackson_Dangerous_World_Tour.jpg", "category": "People"},
+  {"name": "PewDiePie", "image": "https://en.wikipedia.org/wiki/Special:FilePath/PewDiePie_at_PAX_2015.jpg", "category": "People"},
+  {"name": "Smosh", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Smosh.jpg", "category": "People"},
+  {"name": "Ray William Johnson", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Ray_William_Johnson.jpg", "category": "People"},
+  {"name": "Nigahiga", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Ryan_Higa.jpg", "category": "People"},
+  {"name": "Shane Dawson", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Shane_Dawson.jpg", "category": "People"},
+  {"name": "Jenna Mourey", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Jenna_Mourey_2014.jpg", "category": "People"},
+  {"name": "Fred (Lucas Cruikshank)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Lucas_Cruikshank.jpg", "category": "People"},
+  {"name": "Tobuscus", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Tobuscus.jpg", "category": "People"},
+  {"name": "Markiplier", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Markiplier_(26559265532)_(cropped).jpg", "category": "People"},
+  {"name": "Jacksepticeye", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Jacksepticeye_at_PAX_East_2018.jpg", "category": "People"},
+  {"name": "Ninja (Tyler Blevins)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Ninja_(streamer).jpg", "category": "People"},
+  {"name": "Shroud (Michael Grzesiek)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Michael_Grzesiek_at_ESL_One_Cologne_2016_(cropped).jpg", "category": "People"},
+  {"name": "xQc (Félix Lengyel)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/XQcOW.jpg", "category": "People"},
+  {"name": "Pokimane", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Pokimane.jpg", "category": "People"},
+  {"name": "Ludwig Ahgren", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Ludwig_Ahgren.jpg", "category": "People"},
+  {"name": "Amouranth", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Amouranth.jpg", "category": "People"},
+  {"name": "HasanAbi", "image": "https://en.wikipedia.org/wiki/Special:FilePath/HasanAbi.jpg", "category": "People"},
+  {"name": "Mizkif", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Mizkif.jpg", "category": "People"},
+  {"name": "Jeffrey Epstein", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Jeffrey_Epstein_2.jpg", "category": "People"},
+
+  {"name": "Afghanistan", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Afghanistan.svg", "category": "Places"},
+  {"name": "Albania", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Albania.svg", "category": "Places"},
+  {"name": "Algeria", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Algeria.svg", "category": "Places"},
+  {"name": "Argentina", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Argentina.svg", "category": "Places"},
+  {"name": "Australia", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Australia.svg", "category": "Places"},
+  {"name": "Austria", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Austria.svg", "category": "Places"},
+  {"name": "Bangladesh", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Bangladesh.svg", "category": "Places"},
+  {"name": "Belgium", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Belgium.svg", "category": "Places"},
+  {"name": "Bolivia", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Bolivia.svg", "category": "Places"},
+  {"name": "Brazil", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Brazil.svg", "category": "Places"},
+  {"name": "Canada", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Canada.svg", "category": "Places"},
+  {"name": "Chile", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Chile.svg", "category": "Places"},
+  {"name": "China", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_the_People%27s_Republic_of_China.svg", "category": "Places"},
+  {"name": "Colombia", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Colombia.svg", "category": "Places"},
+  {"name": "Cuba", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Cuba.svg", "category": "Places"},
+  {"name": "Czech Republic", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_the_Czech_Republic.svg", "category": "Places"},
+  {"name": "Denmark", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Denmark.svg", "category": "Places"},
+  {"name": "Egypt", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Egypt.svg", "category": "Places"},
+  {"name": "Ethiopia", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Ethiopia.svg", "category": "Places"},
+  {"name": "Finland", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Finland.svg", "category": "Places"},
+  {"name": "France", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_France.svg", "category": "Places"},
+  {"name": "Germany", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Germany.svg", "category": "Places"},
+  {"name": "Ghana", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Ghana.svg", "category": "Places"},
+  {"name": "Greece", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Greece.svg", "category": "Places"},
+  {"name": "Hungary", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Hungary.svg", "category": "Places"},
+  {"name": "India", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_India.svg", "category": "Places"},
+  {"name": "Indonesia", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Indonesia.svg", "category": "Places"},
+  {"name": "Iran", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Iran.svg", "category": "Places"},
+  {"name": "Iraq", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Iraq.svg", "category": "Places"},
+  {"name": "Ireland", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Ireland.svg", "category": "Places"},
+  {"name": "Israel", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Israel.svg", "category": "Places"},
+  {"name": "Italy", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Italy.svg", "category": "Places"},
+  {"name": "Japan", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Japan.svg", "category": "Places"},
+  {"name": "Kenya", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Kenya.svg", "category": "Places"},
+  {"name": "Mexico", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Mexico.svg", "category": "Places"},
+  {"name": "Netherlands", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_the_Netherlands.svg", "category": "Places"},
+  {"name": "New Zealand", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_New_Zealand.svg", "category": "Places"},
+  {"name": "Nigeria", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Nigeria.svg", "category": "Places"},
+  {"name": "North Korea", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_North_Korea.svg", "category": "Places"},
+  {"name": "Norway", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Norway.svg", "category": "Places"},
+  {"name": "Pakistan", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Pakistan.svg", "category": "Places"},
+  {"name": "Peru", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Peru.svg", "category": "Places"},
+  {"name": "Philippines", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_the_Philippines.svg", "category": "Places"},
+  {"name": "Poland", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Poland.svg", "category": "Places"},
+  {"name": "Portugal", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Portugal.svg", "category": "Places"},
+  {"name": "Romania", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Romania.svg", "category": "Places"},
+  {"name": "Russia", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Russia.svg", "category": "Places"},
+  {"name": "Saudi Arabia", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Saudi_Arabia.svg", "category": "Places"},
+  {"name": "South Africa", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_South_Africa.svg", "category": "Places"},
+  {"name": "South Korea", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_South_Korea.svg", "category": "Places"},
+  {"name": "Spain", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Spain.svg", "category": "Places"},
+  {"name": "Sweden", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Sweden.svg", "category": "Places"},
+  {"name": "Switzerland", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Switzerland.svg", "category": "Places"},
+  {"name": "Turkey", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Turkey.svg", "category": "Places"},
+  {"name": "Ukraine", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Ukraine.svg", "category": "Places"},
+  {"name": "United Kingdom", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_the_United_Kingdom.svg", "category": "Places"},
+  {"name": "United States", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_the_United_States.svg", "category": "Places"},
+  {"name": "Venezuela", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Venezuela.svg", "category": "Places"},
+  {"name": "Vietnam", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Vietnam.svg", "category": "Places"},
+  {"name": "Washington D.C.", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Washington,_D.C._in_the_United_States.svg", "category": "Places"},
+  {"name": "London", "image": "https://en.wikipedia.org/wiki/Special:FilePath/London_from_the_Shard_(cropped).jpg", "category": "Places"},
+  {"name": "Paris", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Paris_-_Eiffelturm_und_Marsfeld2.jpg", "category": "Places"},
+  {"name": "Berlin", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Brandenburger_Tor_abends.jpg", "category": "Places"},
+  {"name": "Tokyo", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Skyscrapers_of_Shinjuku_2009_January.jpg", "category": "Places"},
+  {"name": "Beijing", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Beijing_montage.png", "category": "Places"},
+  {"name": "Moscow", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Moscow_July_2011-13.jpg", "category": "Places"},
+  {"name": "Ottawa", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Parliament_Ottawa_Ontario_Canada.jpg", "category": "Places"},
+  {"name": "Canberra", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Canberra_Montage_2019.jpg", "category": "Places"},
+  {"name": "Rome", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Colosseum_in_Rome-April_2007-1-_copie_2B.jpg", "category": "Places"},
+  {"name": "Madrid", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Madrid_-_Puerta_del_Sol_-_20110811_01.jpg", "category": "Places"},
+  {"name": "Cairo", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Cairo_montage.jpg", "category": "Places"},
+  {"name": "New Delhi", "image": "https://en.wikipedia.org/wiki/Special:FilePath/India_Gate_in_New_Delhi_03-2016.jpg", "category": "Places"},
+  {"name": "Brasília", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Bras%C3%ADlia_Montagem.jpg", "category": "Places"},
+  {"name": "Seoul", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Bukhansan_and_Seoul.jpg", "category": "Places"},
+  {"name": "Nairobi", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Nairobi_Skyline_2018.jpg", "category": "Places"},
+  {"name": "Buenos Aires", "image": "https://en.wikipedia.org/wiki/Special:FilePath/BA_desde_el_aire.jpg", "category": "Places"},
+  {"name": "Mexico City", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Cdmx_Panoramica_Torre_Latino.jpg", "category": "Places"},
+  {"name": "Riyadh", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Riyadh_Skyline.jpg", "category": "Places"},
+  {"name": "Alberta", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Alberta.svg", "category": "Places"},
+  {"name": "British Columbia", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_British_Columbia.svg", "category": "Places"},
+  {"name": "Manitoba", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Manitoba.svg", "category": "Places"},
+  {"name": "New Brunswick", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_New_Brunswick.svg", "category": "Places"},
+  {"name": "Newfoundland and Labrador", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Newfoundland_and_Labrador.svg", "category": "Places"},
+  {"name": "Nova Scotia", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Nova_Scotia.svg", "category": "Places"},
+  {"name": "Ontario", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Ontario.svg", "category": "Places"},
+  {"name": "Prince Edward Island", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Prince_Edward_Island.svg", "category": "Places"},
+  {"name": "Quebec", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Quebec.svg", "category": "Places"},
+  {"name": "Saskatchewan", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Saskatchewan.svg", "category": "Places"},
+  {"name": "Alabama", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Alabama.svg", "category": "Places"},
+  {"name": "Alaska", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Alaska.svg", "category": "Places"},
+  {"name": "Arizona", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Arizona.svg", "category": "Places"},
+  {"name": "Arkansas", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Arkansas.svg", "category": "Places"},
+  {"name": "California", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_California.svg", "category": "Places"},
+  {"name": "Colorado", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Colorado.svg", "category": "Places"},
+  {"name": "Connecticut", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Connecticut.svg", "category": "Places"},
+  {"name": "Delaware", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Delaware.svg", "category": "Places"},
+  {"name": "Florida", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Florida.svg", "category": "Places"},
+  {"name": "Georgia (US State)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Georgia_(U.S._state).svg", "category": "Places"},
+  {"name": "Hawaii", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Hawaii.svg", "category": "Places"},
+  {"name": "Idaho", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Idaho.svg", "category": "Places"},
+  {"name": "Illinois", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Illinois.svg", "category": "Places"},
+  {"name": "Indiana", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Indiana.svg", "category": "Places"},
+  {"name": "Iowa", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Iowa.svg", "category": "Places"},
+  {"name": "Kansas", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Kansas.svg", "category": "Places"},
+  {"name": "Kentucky", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Kentucky.svg", "category": "Places"},
+  {"name": "Louisiana", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Louisiana.svg", "category": "Places"},
+  {"name": "Maine", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Maine.svg", "category": "Places"},
+  {"name": "Maryland", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Maryland.svg", "category": "Places"},
+  {"name": "Massachusetts", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Massachusetts.svg", "category": "Places"},
+  {"name": "Michigan", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Michigan.svg", "category": "Places"},
+  {"name": "Minnesota", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Minnesota.svg", "category": "Places"},
+  {"name": "Mississippi", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Mississippi.svg", "category": "Places"},
+  {"name": "Missouri", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Missouri.svg", "category": "Places"},
+  {"name": "Montana", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Montana.svg", "category": "Places"},
+  {"name": "Nebraska", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Nebraska.svg", "category": "Places"},
+  {"name": "Nevada", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Nevada.svg", "category": "Places"},
+  {"name": "New Hampshire", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_New_Hampshire.svg", "category": "Places"},
+  {"name": "New Jersey", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_New_Jersey.svg", "category": "Places"},
+  {"name": "New Mexico", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_New_Mexico.svg", "category": "Places"},
+  {"name": "New York", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_New_York.svg", "category": "Places"},
+  {"name": "North Carolina", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_North_Carolina.svg", "category": "Places"},
+  {"name": "North Dakota", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_North_Dakota.svg", "category": "Places"},
+  {"name": "Ohio", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Ohio.svg", "category": "Places"},
+  {"name": "Oklahoma", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Oklahoma.svg", "category": "Places"},
+  {"name": "Oregon", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Oregon.svg", "category": "Places"},
+  {"name": "Pennsylvania", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Pennsylvania.svg", "category": "Places"},
+  {"name": "Rhode Island", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Rhode_Island.svg", "category": "Places"},
+  {"name": "South Carolina", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_South_Carolina.svg", "category": "Places"},
+  {"name": "South Dakota", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_South_Dakota.svg", "category": "Places"},
+  {"name": "Tennessee", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Tennessee.svg", "category": "Places"},
+  {"name": "Texas", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Texas.svg", "category": "Places"},
+  {"name": "Utah", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Utah.svg", "category": "Places"},
+  {"name": "Vermont", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Vermont.svg", "category": "Places"},
+  {"name": "Virginia", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Virginia.svg", "category": "Places"},
+  {"name": "Washington (State)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Washington_(state).svg", "category": "Places"},
+  {"name": "West Virginia", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_West_Virginia.svg", "category": "Places"},
+  {"name": "Wisconsin", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Wisconsin.svg", "category": "Places"},
+  {"name": "Wyoming", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flag_of_Wyoming.svg", "category": "Places"},
+
+  {"name": "Head", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Head_diagram_no_labels.svg", "category": "Body Parts"},
+  {"name": "Face", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Gesicht.jpg", "category": "Body Parts"},
+  {"name": "Eye", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Anatomy_of_the_Human_Eye.svg", "category": "Body Parts"},
+  {"name": "Ear", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Anatomy_of_the_Human_Ear.svg", "category": "Body Parts"},
+  {"name": "Nose", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Neus_(catala).jpg", "category": "Body Parts"},
+  {"name": "Mouth", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Mouth_illustration.jpg", "category": "Body Parts"},
+  {"name": "Teeth", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Teeth_photo.jpg", "category": "Body Parts"},
+  {"name": "Tongue", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Tongue_(PSF).png", "category": "Body Parts"},
+  {"name": "Neck", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Blausen_0657_NeckAnatomy_Side.png", "category": "Body Parts"},
+  {"name": "Shoulder", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Shoulder_joint.svg", "category": "Body Parts"},
+  {"name": "Arm", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Arm_flex_supinate.jpg", "category": "Body Parts"},
+  {"name": "Elbow", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Blausen_0239_ElbowAnatomy_02.png", "category": "Body Parts"},
+  {"name": "Wrist", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Wrist_diagram.jpg", "category": "Body Parts"},
+  {"name": "Hand", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Human-Hands-Front-Back.jpg", "category": "Body Parts"},
+  {"name": "Finger", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Finger_counting.jpg", "category": "Body Parts"},
+  {"name": "Thumb", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Thumb_example_2009.jpg", "category": "Body Parts"},
+  {"name": "Fingernail", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Fingernails_of_left_hand.jpg", "category": "Body Parts"},
+  {"name": "Chest", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Chest.jpg", "category": "Body Parts"},
+  {"name": "Back", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Back_muscles.jpg", "category": "Body Parts"},
+  {"name": "Spine", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Spinal_column_curvature.png", "category": "Body Parts"},
+  {"name": "Stomach", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Stomach_diagram.svg", "category": "Body Parts"},
+  {"name": "Belly Button", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Navel_demonstration.jpg", "category": "Body Parts"},
+  {"name": "Hip", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Hip_anatomy.jpg", "category": "Body Parts"},
+  {"name": "Leg", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Leg_press_-_annotated.jpg", "category": "Body Parts"},
+  {"name": "Knee", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Blausen_0597_KneeAnatomy_02.png", "category": "Body Parts"},
+  {"name": "Thigh", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Anterior_thigh_muscles.jpg", "category": "Body Parts"},
+  {"name": "Shin", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Anterior_lower_leg_muscles.jpg", "category": "Body Parts"},
+  {"name": "Ankle", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Blausen_0411_Foot_%26_Ankle_Anatomy.png", "category": "Body Parts"},
+  {"name": "Foot", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Lateral_right_human_foot.jpg", "category": "Body Parts"},
+  {"name": "Toe", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Toes.jpg", "category": "Body Parts"},
+  {"name": "Toenail", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Ingrown_nail.jpg", "category": "Body Parts"},
+  {"name": "Forehead", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Forehead_anatomy.jpg", "category": "Body Parts"},
+  {"name": "Cheek", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Cheek_blush.jpg", "category": "Body Parts"},
+  {"name": "Chin", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Chin.jpg", "category": "Body Parts"},
+  {"name": "Jaw", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Blausen_0536_Jaw.png", "category": "Body Parts"},
+  {"name": "Eyelid", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Eyelid.jpg", "category": "Body Parts"},
+  {"name": "Eyebrow", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Eyebrows.jpg", "category": "Body Parts"},
+  {"name": "Eyelash", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Eyelashes.jpg", "category": "Body Parts"},
+  {"name": "Lip", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Lips_(PSF).png", "category": "Body Parts"},
+  {"name": "Hair", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Hair_photo.jpg", "category": "Body Parts"},
+  {"name": "Skin", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Skin_layers.svg", "category": "Body Parts"},
+  {"name": "Muscle", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Skeletal_muscle.jpg", "category": "Body Parts"},
+  {"name": "Bone", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Anatomy_of_a_long_bone.svg", "category": "Body Parts"},
+  {"name": "Heart", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Diagram_of_the_human_heart_(cropped).svg", "category": "Body Parts"},
+  {"name": "Lung", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Blausen_0598_LungAnatomy.png", "category": "Body Parts"},
+  {"name": "Brain", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Human_brain_NIH.jpg", "category": "Body Parts"},
+  {"name": "Liver", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Illu_liver.jpg", "category": "Body Parts"},
+  {"name": "Kidney", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Kidney_BW.jpg", "category": "Body Parts"},
+  {"name": "Rib Cage", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Rib_cage_illustration.jpg", "category": "Body Parts"},
+  {"name": "Buttocks", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Gluteal_muscles_he.jpg", "category": "Body Parts"},
+  {"name": "Calf", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Calf_muscle.jpg", "category": "Body Parts"},
+
+  {"name": "Ouroboros", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Serpiente_alquimica.jpg", "category": "Concepts"},
+  {"name": "Nirvana", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Ananda_at_death_of_Buddha.jpg", "category": "Concepts"},
+  {"name": "Karma", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Karma.svg", "category": "Concepts"},
+  {"name": "Samsara", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Bhavachakra,_wheel_of_becoming.jpg", "category": "Concepts"},
+  {"name": "Dharma", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Dharma_Wheel.svg", "category": "Concepts"},
+  {"name": "Meditation", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Silhouette_of_a_woman_in_Lotus_position_at_sunset.jpg", "category": "Concepts"},
+  {"name": "Enlightenment", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Bodhgaya_bodhi_tree.jpg", "category": "Concepts"},
+  {"name": "Existentialism", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Sartre_1965.jpg", "category": "Concepts"},
+  {"name": "Nihilism", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Nietzsche187a.jpg", "category": "Concepts"},
+  {"name": "Taoism", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Yin_yang.svg", "category": "Concepts"},
+  {"name": "Stoicism", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Marcus_Aurelius_Metropolitan_Museum.jpg", "category": "Concepts"},
+  {"name": "Utilitarianism", "image": "https://en.wikipedia.org/wiki/Special:FilePath/John_Stuart_Mill_by_London_Stereoscopic_Company,_c1870.jpg", "category": "Concepts"},
+  {"name": "Hedonism", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Epicurus_bust2.jpg", "category": "Concepts"},
+  {"name": "Marxism", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Karl_Marx_001.jpg", "category": "Concepts"},
+  {"name": "Humanism", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Vitruvian_Man_by_Leonardo_da_Vinci.jpg", "category": "Concepts"},
+  {"name": "Empiricism", "image": "https://en.wikipedia.org/wiki/Special:FilePath/John_Locke.jpg", "category": "Concepts"},
+  {"name": "Rationalism", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Descartes_portrait.jpg", "category": "Concepts"},
+  {"name": "Idealism", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Plato-raphael.jpg", "category": "Concepts"},
+  {"name": "Pragmatism", "image": "https://en.wikipedia.org/wiki/Special:FilePath/William_James_b1842c.jpg", "category": "Concepts"},
+  {"name": "Anarchism", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Red-and-black-flag.svg", "category": "Concepts"},
+  {"name": "Capitalism", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Stock_market_crash_1929.jpg", "category": "Concepts"},
+  {"name": "Socialism", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Socialist_red_star.svg", "category": "Concepts"},
+  {"name": "Feminism", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Venus_symbol.svg", "category": "Concepts"},
+  {"name": "Democracy", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Athenian_democracy.jpg", "category": "Concepts"},
+  {"name": "Christianity", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Cross_necklace.jpg", "category": "Concepts"},
+  {"name": "Islam", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Masjid_Al_Haram.jpg", "category": "Concepts"},
+  {"name": "Hinduism", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Om_symbol.svg", "category": "Concepts"},
+  {"name": "Buddhism", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Buddha_statue,_Bodh_Gaya,_Bihar,_India.jpg", "category": "Concepts"},
+  {"name": "Judaism", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Star_of_David.svg", "category": "Concepts"},
+  {"name": "Sikhism", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Khanda.svg", "category": "Concepts"},
+  {"name": "Shinto", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Fushimi_Inari_Taisha.jpg", "category": "Concepts"},
+  {"name": "Atheism", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Atheism.svg", "category": "Concepts"},
+  {"name": "Paganism", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Pentagram_within_circle.svg", "category": "Concepts"},
+  {"name": "Zoroastrianism", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Faravahar.svg", "category": "Concepts"},
+  {"name": "Love", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Love_Heart_SVG.svg", "category": "Concepts"},
+  {"name": "Hate", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Angry_person.jpg", "category": "Concepts"},
+  {"name": "Joy", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Smiley.svg", "category": "Concepts"},
+  {"name": "Sadness", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Sad_child.jpg", "category": "Concepts"},
+  {"name": "Fear", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Scared_girl.jpg", "category": "Concepts"},
+  {"name": "Anger", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Anger.jpg", "category": "Concepts"},
+  {"name": "Surprise", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Surprised_face.jpg", "category": "Concepts"},
+  {"name": "Disgust", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Disgust_expression.jpg", "category": "Concepts"},
+  {"name": "Hope", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Hope_(painting).jpg", "category": "Concepts"},
+  {"name": "Grief", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Pieta_(Michelangelo).jpg", "category": "Concepts"},
+  {"name": "Jealousy", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Jealousy.jpg", "category": "Concepts"},
+  {"name": "Pride", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Pride.jpg", "category": "Concepts"},
+  {"name": "Shame", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Shame.jpg", "category": "Concepts"},
+  {"name": "Loneliness", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Lonely.jpg", "category": "Concepts"},
+  {"name": "Envy", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Envy.jpg", "category": "Concepts"},
+  {"name": "Nostalgia", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Nostalgia.jpg", "category": "Concepts"},
+  {"name": "Empathy", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Empathy.jpg", "category": "Concepts"},
+  {"name": "Curiosity", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Curiosity.jpg", "category": "Concepts"},
+
+  {"name": "Apple Inc.", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Apple_logo_black.svg", "category": "Companies"},
+  {"name": "Microsoft", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Microsoft_logo_(2012).svg", "category": "Companies"},
+  {"name": "Amazon", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Amazon_logo.svg", "category": "Companies"},
+  {"name": "Alphabet (Google)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Google_2015_logo.svg", "category": "Companies"},
+  {"name": "NVIDIA", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Nvidia_logo.svg", "category": "Companies"},
+  {"name": "Tesla", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Tesla_Motors.svg", "category": "Companies"},
+  {"name": "Meta Platforms", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Meta_Platforms_Inc._logo.svg", "category": "Companies"},
+  {"name": "Berkshire Hathaway", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Berkshire_Hathaway_Logo.svg", "category": "Companies"},
+  {"name": "Eli Lilly", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Eli_Lilly_and_Company.svg", "category": "Companies"},
+  {"name": "JPMorgan Chase", "image": "https://en.wikipedia.org/wiki/Special:FilePath/JPMorgan_Chase_Logo_2008_1.svg", "category": "Companies"},
+  {"name": "Visa", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Visa_Inc._logo.svg", "category": "Companies"},
+  {"name": "UnitedHealth Group", "image": "https://en.wikipedia.org/wiki/Special:FilePath/UnitedHealth_Group_logo.svg", "category": "Companies"},
+  {"name": "ExxonMobil", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Exxon_Mobil_Logo.svg", "category": "Companies"},
+  {"name": "Johnson & Johnson", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Johnson_%26_Johnson_Logo.svg", "category": "Companies"},
+  {"name": "Walmart", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Walmart_logo.svg", "category": "Companies"},
+  {"name": "Mastercard", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Mastercard-logo.svg", "category": "Companies"},
+  {"name": "Procter & Gamble", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Procter_%26_Gamble_logo.svg", "category": "Companies"},
+  {"name": "Home Depot", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Home_Depot_logo.svg", "category": "Companies"},
+  {"name": "Chevron", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Chevron_Logo.svg", "category": "Companies"},
+  {"name": "AbbVie", "image": "https://en.wikipedia.org/wiki/Special:FilePath/AbbVie_Logo.svg", "category": "Companies"},
+  {"name": "Merck", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Merck_%26_Co.svg", "category": "Companies"},
+  {"name": "Bank of America", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Bank_of_America_logo.svg", "category": "Companies"},
+  {"name": "Costco", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Costco_logo.svg", "category": "Companies"},
+  {"name": "PepsiCo", "image": "https://en.wikipedia.org/wiki/Special:FilePath/PepsiCo_logo.svg", "category": "Companies"},
+  {"name": "Coca-Cola", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Coca-Cola_logo.svg", "category": "Companies"},
+  {"name": "Adobe", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Adobe_Corporate_logo.svg", "category": "Companies"},
+  {"name": "Netflix", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Netflix_2015_logo.svg", "category": "Companies"},
+  {"name": "Salesforce", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Salesforce.com_logo.svg", "category": "Companies"},
+  {"name": "Oracle", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Oracle_logo.svg", "category": "Companies"},
+  {"name": "Accenture", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Accenture.svg", "category": "Companies"},
+  {"name": "Disney", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Disney_wordmark.svg", "category": "Companies"},
+  {"name": "McDonald's", "image": "https://en.wikipedia.org/wiki/Special:FilePath/McDonald%27s_Golden_Arches.svg", "category": "Companies"},
+  {"name": "Nike", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Nike_Logo.svg", "category": "Companies"},
+  {"name": "Starbucks", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Starbucks_Logo_ab_2011.svg", "category": "Companies"},
+  {"name": "PayPal", "image": "https://en.wikipedia.org/wiki/Special:FilePath/PayPal.svg", "category": "Companies"},
+  {"name": "Boeing", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Boeing_full_logo.svg", "category": "Companies"},
+  {"name": "Goldman Sachs", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Goldman_Sachs.svg", "category": "Companies"},
+  {"name": "Morgan Stanley", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Morgan_Stanley_Logo_1.svg", "category": "Companies"},
+  {"name": "AMD", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Advanced_Micro_Devices_Logo.svg", "category": "Companies"},
+  {"name": "Intel", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Intel-logo.svg", "category": "Companies"},
+  {"name": "Qualcomm", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Qualcomm_logo.svg", "category": "Companies"},
+  {"name": "Broadcom", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Broadcom_Corporation_logo.svg", "category": "Companies"},
+  {"name": "Pfizer", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Pfizer_(2021).svg", "category": "Companies"},
+  {"name": "3M", "image": "https://en.wikipedia.org/wiki/Special:FilePath/3M_logo.svg", "category": "Companies"},
+  {"name": "Caterpillar Inc.", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Caterpillar_logo.svg", "category": "Companies"},
+  {"name": "Deere & Company", "image": "https://en.wikipedia.org/wiki/Special:FilePath/John_Deere_logo.svg", "category": "Companies"},
+  {"name": "Raytheon Technologies", "image": "https://en.wikipedia.org/wiki/Special:FilePath/RTX_logo.svg", "category": "Companies"},
+  {"name": "Lockheed Martin", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Lockheed_Martin_logo.svg", "category": "Companies"},
+  {"name": "FedEx", "image": "https://en.wikipedia.org/wiki/Special:FilePath/FedEx_Express.svg", "category": "Companies"},
+  {"name": "UPS", "image": "https://en.wikipedia.org/wiki/Special:FilePath/United_Parcel_Service_logo_2014.svg", "category": "Companies"},
+
+  {"name": "Apple", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Red_Apple.jpg", "category": "Foods"},
+  {"name": "Banana", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Bananas.jpg", "category": "Foods"},
+  {"name": "Orange", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Orange-Fruit-Pieces.jpg", "category": "Foods"},
+  {"name": "Strawberry", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Garden_strawberry_(Fragaria_%C3%97_ananassa)_single.jpg", "category": "Foods"},
+  {"name": "Mango", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Mangoes_at_fruit_stall.jpg", "category": "Foods"},
+  {"name": "Pineapple", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Pineapple_and_cross_section.jpg", "category": "Foods"},
+  {"name": "Watermelon", "image": "https://en.wikipedia.org/wiki/Special:FilePath/National_Watermelon_Day_(Unsplash).jpg", "category": "Foods"},
+  {"name": "Grapes", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Wine_grapes03.jpg", "category": "Foods"},
+  {"name": "Blueberry", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Blueberry_pancakes_(5865155754).jpg", "category": "Foods"},
+  {"name": "Peach", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Autumn_Red_peaches.jpg", "category": "Foods"},
+  {"name": "Pear", "image": "https://en.wikipedia.org/wiki/Special:FilePath/PearPhoto.jpg", "category": "Foods"},
+  {"name": "Cherry", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Cherry_Stella444.jpg", "category": "Foods"},
+  {"name": "Lemon", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Lemon.jpg", "category": "Foods"},
+  {"name": "Lime", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Citrus_limonia.jpg", "category": "Foods"},
+  {"name": "Coconut", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Coconut_on_white_background.jpg", "category": "Foods"},
+  {"name": "Avocado", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Avocado_Whole_and_Split.jpg", "category": "Foods"},
+  {"name": "Kiwi", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Kiwi_aka.jpg", "category": "Foods"},
+  {"name": "Pomegranate", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Pomegranate_fruit_-_whole_and_piece_with_arils.jpg", "category": "Foods"},
+  {"name": "Papaya", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Papaya_cross_section_BNC.jpg", "category": "Foods"},
+  {"name": "Plum", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Italian_Prunes_clipped_oval.jpg", "category": "Foods"},
+  {"name": "Hamburger", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Hamburger_(black_bg).jpg", "category": "Foods"},
+  {"name": "Hot Dog", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Hotdog_-_Evan_Swigart.jpg", "category": "Foods"},
+  {"name": "Chicken Sandwich", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Chicken_sandwich.jpg", "category": "Foods"},
+  {"name": "BLT Sandwich", "image": "https://en.wikipedia.org/wiki/Special:FilePath/BLT_sandwich.jpg", "category": "Foods"},
+  {"name": "Club Sandwich", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Club_sandwich.jpg", "category": "Foods"},
+  {"name": "Philly Cheesesteak", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Philly_cheesesteak.jpg", "category": "Foods"},
+  {"name": "Grilled Cheese", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Grilled_cheese_sandwich.jpg", "category": "Foods"},
+  {"name": "Submarine Sandwich", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Sub_sandwich.jpg", "category": "Foods"},
+  {"name": "Reuben Sandwich", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Reuben_sandwich.jpg", "category": "Foods"},
+  {"name": "PB&J Sandwich", "image": "https://en.wikipedia.org/wiki/Special:FilePath/PBandJ.jpg", "category": "Foods"},
+  {"name": "Ramen", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Shoyu_Ramen,_Tsukamoto_-_Flickr.jpg", "category": "Foods"},
+  {"name": "Pho", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Pho_bo_Soc_Trang.jpg", "category": "Foods"},
+  {"name": "Chicken Noodle Soup", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Chicken_noodle_soup.jpg", "category": "Foods"},
+  {"name": "Tomato Soup", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Tomato_soup.jpg", "category": "Foods"},
+  {"name": "Clam Chowder", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Clam_chowder.jpg", "category": "Foods"},
+  {"name": "French Onion Soup", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Soupe_%C3%A0_l%27oignon.jpg", "category": "Foods"},
+  {"name": "Minestrone", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Minestrone_soup.jpg", "category": "Foods"},
+  {"name": "Miso Soup", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Miso_soup.jpg", "category": "Foods"},
+  {"name": "Sushi", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Sushi_platter.jpg", "category": "Foods"},
+  {"name": "Pizza", "image": "https://en.wikipedia.org/wiki/Special:FilePath/A_small_cup_of_coffee.JPG", "category": "Foods"},
+  {"name": "Tacos", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Tacos_at_a_dinner.jpg", "category": "Foods"},
+  {"name": "Pasta", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Petto_di_pollo_con_salsa_di_limone_e_tagliatelle.jpg", "category": "Foods"},
+  {"name": "Curry", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Thai_curry.jpg", "category": "Foods"},
+  {"name": "Pad Thai", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Pad_Thai_kung.jpg", "category": "Foods"},
+  {"name": "Paella", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Paella_de_marisco_01.jpg", "category": "Foods"},
+  {"name": "Fried Rice", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Fried_rice.jpg", "category": "Foods"},
+  {"name": "Dim Sum", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Dim_sum_in_Hong_Kong.jpg", "category": "Foods"},
+  {"name": "Bibimbap", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Dolsot-bibimbap.jpg", "category": "Foods"},
+  {"name": "Falafel", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Falafel_balls.jpg", "category": "Foods"},
+  {"name": "Shawarma", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Shawarma_made_from_turkey_meat.jpg", "category": "Foods"},
+  {"name": "Steak", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Beef_steak_2.jpg", "category": "Foods"},
+  {"name": "Pancakes", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Crepe_with_cream_and_strawberries.jpg", "category": "Foods"},
+  {"name": "Croissant", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Croissant_Lune_de_miel_Boulangerie.jpg", "category": "Foods"},
+
+  {"name": "Toyota Camry", "image": "https://en.wikipedia.org/wiki/Special:FilePath/1996_Toyota_Camry.jpg", "category": "Cars"},
+  {"name": "Honda Accord", "image": "https://en.wikipedia.org/wiki/Special:FilePath/1994_Honda_Accord_EX_sedan.jpg", "category": "Cars"},
+  {"name": "Ford F-150 (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/1994_Ford_F-150.jpg", "category": "Cars"},
+  {"name": "Chevrolet Silverado (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/1999_Chevrolet_Silverado.jpg", "category": "Cars"},
+  {"name": "Honda Civic (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/1998_Honda_Civic.jpg", "category": "Cars"},
+  {"name": "Ford Explorer (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/1991_Ford_Explorer.jpg", "category": "Cars"},
+  {"name": "Dodge Caravan (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/1990s_Dodge_Caravan.jpg", "category": "Cars"},
+  {"name": "Toyota Corolla (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/1994_Toyota_Corolla.jpg", "category": "Cars"},
+  {"name": "Chevrolet Blazer (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/1996_Chevrolet_S10_Blazer.jpg", "category": "Cars"},
+  {"name": "Ford Mustang (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/1994_Ford_Mustang.jpg", "category": "Cars"},
+  {"name": "Dodge Ram (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/1994_Dodge_Ram_1500.jpg", "category": "Cars"},
+  {"name": "Jeep Cherokee (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/1996_Jeep_Cherokee_XJ.jpg", "category": "Cars"},
+  {"name": "Saturn SL", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Saturn_SL2.jpg", "category": "Cars"},
+  {"name": "Pontiac Grand Am", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Pontiac_Grand_Am_GT.jpg", "category": "Cars"},
+  {"name": "Buick LeSabre (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Buick_LeSabre.jpg", "category": "Cars"},
+  {"name": "Lincoln Town Car (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Lincoln_Town_Car.jpg", "category": "Cars"},
+  {"name": "Oldsmobile Cutlass", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Oldsmobile_Cutlass_Supreme.jpg", "category": "Cars"},
+  {"name": "Mercury Grand Marquis", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Mercury_Grand_Marquis.jpg", "category": "Cars"},
+  {"name": "Subaru Legacy (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Subaru_Legacy.jpg", "category": "Cars"},
+  {"name": "Volkswagen Jetta (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/VW_Jetta.jpg", "category": "Cars"},
+  {"name": "Mazda 626 (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Mazda_626.jpg", "category": "Cars"},
+  {"name": "Nissan Maxima (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Nissan_Maxima.jpg", "category": "Cars"},
+  {"name": "Mitsubishi Eclipse (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Mitsubishi_Eclipse.jpg", "category": "Cars"},
+  {"name": "Hyundai Sonata (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Hyundai_Sonata.jpg", "category": "Cars"},
+  {"name": "BMW 3 Series (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/BMW_E36_sedan.jpg", "category": "Cars"},
+  {"name": "Mercedes C-Class (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Mercedes_W202.jpg", "category": "Cars"},
+  {"name": "Chevrolet Suburban (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Chevrolet_Suburban.jpg", "category": "Cars"},
+  {"name": "Ford Taurus (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Ford_Taurus.jpg", "category": "Cars"},
+  {"name": "Pontiac Firebird", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Pontiac_Firebird.jpg", "category": "Cars"},
+  {"name": "Chevrolet Corvette (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Chevrolet_Corvette_C4.jpg", "category": "Cars"},
+  {"name": "Dodge Charger (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Dodge_Charger.jpg", "category": "Cars"},
+  {"name": "Toyota RAV4 (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Toyota_RAV4.jpg", "category": "Cars"},
+  {"name": "Honda CR-V (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Honda_CRV.jpg", "category": "Cars"},
+  {"name": "Isuzu Rodeo", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Isuzu_Rodeo.jpg", "category": "Cars"},
+  {"name": "Kia Sephia", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Kia_Sephia.jpg", "category": "Cars"},
+  {"name": "Acura Integra", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Acura_Integra.jpg", "category": "Cars"},
+  {"name": "Chrysler 300M (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Chrysler_300M.jpg", "category": "Cars"},
+  {"name": "Ford Ranger (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Ford_Ranger.jpg", "category": "Cars"},
+  {"name": "Geo Metro", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Geo_Metro.jpg", "category": "Cars"},
+  {"name": "Plymouth Neon", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Plymouth_Neon.jpg", "category": "Cars"},
+  {"name": "GMC Sierra (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/GMC_Sierra.jpg", "category": "Cars"},
+  {"name": "Cadillac DeVille (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Cadillac_DeVille.jpg", "category": "Cars"},
+  {"name": "Lexus ES (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Lexus_ES.jpg", "category": "Cars"},
+  {"name": "Infinity Q45 (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Infiniti_Q45.jpg", "category": "Cars"},
+  {"name": "Acura Legend", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Acura_Legend.jpg", "category": "Cars"},
+  {"name": "Volvo 850", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Volvo_850.jpg", "category": "Cars"},
+  {"name": "Audi A4 (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Audi_A4_B5.jpg", "category": "Cars"},
+  {"name": "Volkswagen Golf (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/VW_Golf_III.jpg", "category": "Cars"},
+  {"name": "Suzuki Sidekick", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Suzuki_Sidekick.jpg", "category": "Cars"},
+  {"name": "Land Rover Discovery (90s)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Land_Rover_Discovery.jpg", "category": "Cars"},
+  {"name": "Toyota F-150 (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/2021_Ford_F-150_Limited.jpg", "category": "Cars"},
+  {"name": "Tesla Model Y", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Tesla_Model_Y.jpg", "category": "Cars"},
+  {"name": "Tesla Model 3", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Tesla_Model_3.jpg", "category": "Cars"},
+  {"name": "Toyota RAV4 (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/2019_Toyota_RAV4_(MXAA52R)_GXL_wagon_(2019-09-18)_02.jpg", "category": "Cars"},
+  {"name": "Chevrolet Silverado (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/2019_Chevrolet_Silverado_1500.jpg", "category": "Cars"},
+  {"name": "Honda CR-V (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/2017_Honda_CR-V_(RW)_VTi-L_AWD_wagon_(2018-08-27)_01.jpg", "category": "Cars"},
+  {"name": "Jeep Grand Cherokee (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/2021_Jeep_Grand_Cherokee_L.jpg", "category": "Cars"},
+  {"name": "Toyota Camry (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/2018_Toyota_Camry_(ASV70R)_Ascent_sedan_(2018-08-27)_01.jpg", "category": "Cars"},
+  {"name": "GMC Sierra (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/2019_GMC_Sierra_1500_AT4.jpg", "category": "Cars"},
+  {"name": "Ford Mustang (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/2018_Ford_Mustang_GT.jpg", "category": "Cars"},
+  {"name": "BMW X5 (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/BMW_X5_G05.jpg", "category": "Cars"},
+  {"name": "Mercedes GLE", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Mercedes-Benz_GLE_Coup%C3%A9_(C292,_facelift,_white),_front_8.28.17.jpg", "category": "Cars"},
+  {"name": "Ram 1500 (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Ram_1500_DT_2019.jpg", "category": "Cars"},
+  {"name": "Dodge Challenger (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Dodge_Challenger.jpg", "category": "Cars"},
+  {"name": "Hyundai Tucson (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Hyundai_Tucson_NX4_2.0_GDi_HEV_Comfort_Smart_–_Frontansicht,_28._April_2021,_Ratingen.jpg", "category": "Cars"},
+  {"name": "Kia Telluride", "image": "https://en.wikipedia.org/wiki/Special:FilePath/2020_Kia_Telluride_EX.jpg", "category": "Cars"},
+  {"name": "Rivian R1T", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Rivian_R1T.jpg", "category": "Cars"},
+  {"name": "Ford Bronco (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/2021_Ford_Bronco_Outer_Banks.jpg", "category": "Cars"},
+  {"name": "Subaru Outback (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/2020_Subaru_Outback.jpg", "category": "Cars"},
+  {"name": "Honda Pilot (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Honda_Pilot.jpg", "category": "Cars"},
+  {"name": "Volkswagen Tiguan (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/VW_Tiguan_II_2019.jpg", "category": "Cars"},
+  {"name": "Audi Q5 (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Audi_Q5_(II)_–_Frontansicht,_9._Oktober_2016,_Düsseldorf.jpg", "category": "Cars"},
+  {"name": "Lexus RX (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/2019_Lexus_RX_450h_F_Sport.jpg", "category": "Cars"},
+  {"name": "Mazda CX-5 (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/2017_Mazda_CX-5_Sport_(US).jpg", "category": "Cars"},
+  {"name": "Toyota Tacoma (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/2016_Toyota_Tacoma.jpg", "category": "Cars"},
+  {"name": "Ford Explorer (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/2020_Ford_Explorer_XLT.jpg", "category": "Cars"},
+  {"name": "Chevrolet Equinox (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/2018_Chevrolet_Equinox.jpg", "category": "Cars"},
+  {"name": "Honda Accord (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/2018_Honda_Accord_Sport.jpg", "category": "Cars"},
+  {"name": "Toyota Highlander (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/2020_Toyota_Highlander.jpg", "category": "Cars"},
+  {"name": "Porsche Cayenne (current)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Porsche_Cayenne.jpg", "category": "Cars"},
+
+  {"name": "Bicycle", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Bicycle_diagram-en.svg", "category": "Things"},
+  {"name": "Table", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Table_(PSF).png", "category": "Things"},
+  {"name": "Chair", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Chair_4_legged.jpg", "category": "Things"},
+  {"name": "Computer", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Desktop_computer_clipart_-_Yellow_theme.svg", "category": "Things"},
+  {"name": "Laptop", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Laptop_computer.jpg", "category": "Things"},
+  {"name": "Smartphone", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Smartphone_(1).jpg", "category": "Things"},
+  {"name": "Door", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Residential_front_door.jpg", "category": "Things"},
+  {"name": "Window", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Window-french_style.jpg", "category": "Things"},
+  {"name": "Bed", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Bed_WxH.jpg", "category": "Things"},
+  {"name": "Couch", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Sofa_chair_and_coffee_table.jpg", "category": "Things"},
+  {"name": "Refrigerator", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Refrigerator.jpg", "category": "Things"},
+  {"name": "Microwave", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Microwave_oven.jpg", "category": "Things"},
+  {"name": "Television", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Plasma_Display.jpg", "category": "Things"},
+  {"name": "Washing Machine", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Washing_machine,_open.jpg", "category": "Things"},
+  {"name": "Toaster", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Broodrooster.jpg", "category": "Things"},
+  {"name": "Kettle", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Electric_kettle.jpg", "category": "Things"},
+  {"name": "Lamp", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Incandescent_light_bulb.jpg", "category": "Things"},
+  {"name": "Bookshelf", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Bookcase.jpg", "category": "Things"},
+  {"name": "Scissors", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Scissors_schematic.svg", "category": "Things"},
+  {"name": "Pencil", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Bleistift.jpg", "category": "Things"},
+  {"name": "Pen", "image": "https://en.wikipedia.org/wiki/Special:FilePath/BallPointPen.jpg", "category": "Things"},
+  {"name": "Book", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Stack_of_books_12.jpg", "category": "Things"},
+  {"name": "Backpack", "image": "https://en.wikipedia.org/wiki/Special:FilePath/SOG_Backcountry.jpg", "category": "Things"},
+  {"name": "Umbrella", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Umbrella_photo.jpg", "category": "Things"},
+  {"name": "Clock", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Alarm_clock.jpg", "category": "Things"},
+  {"name": "Watch", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Pocket_watch.jpg", "category": "Things"},
+  {"name": "Glasses", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Glasses_800_edit.png", "category": "Things"},
+  {"name": "Shoe", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Black_and_white_photo_of_a_shoe.jpg", "category": "Things"},
+  {"name": "Hat", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Baseball_cap_2.svg", "category": "Things"},
+  {"name": "T-Shirt", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Uniqlo_t-shirt.jpg", "category": "Things"},
+  {"name": "Jeans", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Jeans_5.jpg", "category": "Things"},
+  {"name": "Jacket", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Bomber_jacket.jpg", "category": "Things"},
+  {"name": "Keys", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Two_ABUS_keys.jpg", "category": "Things"},
+  {"name": "Wallet", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Wallet_in_use.jpg", "category": "Things"},
+  {"name": "Headphones", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Sennheiser_HD_700.jpg", "category": "Things"},
+  {"name": "Camera", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Digital_camera_Ricoh_R5.jpg", "category": "Things"},
+  {"name": "Guitar", "image": "https://en.wikipedia.org/wiki/Special:FilePath/GuitareClassique5.png", "category": "Things"},
+  {"name": "Piano", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Grand_piano_and_upright_piano.jpg", "category": "Things"},
+  {"name": "Hammer", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Hammer_2.jpg", "category": "Things"},
+  {"name": "Screwdriver", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Screwdriver.jpg", "category": "Things"},
+  {"name": "Wrench", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Spanner_and_wrench.jpg", "category": "Things"},
+  {"name": "Ladder", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Extension_ladder.jpg", "category": "Things"},
+  {"name": "Broom", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Broom.jpg", "category": "Things"},
+  {"name": "Trash Can", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Waste_container.jpg", "category": "Things"},
+  {"name": "Toilet", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Toilet_1.jpg", "category": "Things"},
+  {"name": "Sink", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Bathroom_sink.jpg", "category": "Things"},
+  {"name": "Mirror", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Standing_mirror.jpg", "category": "Things"},
+  {"name": "Candle", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Candle.jpg", "category": "Things"},
+  {"name": "Knife", "image": "https://en.wikipedia.org/wiki/Special:FilePath/KitchenKnife.jpg", "category": "Things"},
+  {"name": "Fork", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Fork.jpg", "category": "Things"},
+  {"name": "Spoon", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Spoons_and_forks.jpg", "category": "Things"},
+  {"name": "Cup", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Single_coffee_cup.jpg", "category": "Things"},
+  {"name": "Plate", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Plate_(plain).jpg", "category": "Things"},
+  {"name": "Bowl", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Ceramic_Bowl.jpg", "category": "Things"},
+  {"name": "Bottle", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Plastic-bottle.jpg", "category": "Things"},
+  {"name": "Basketball", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Basketball.png", "category": "Things"},
+  {"name": "Football", "image": "https://en.wikipedia.org/wiki/Special:FilePath/American_football.jpg", "category": "Things"},
+  {"name": "Soccer Ball", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Soccer_ball.svg", "category": "Things"},
+  {"name": "Tennis Racket", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Tennis_racket.jpg", "category": "Things"},
+  {"name": "Baseball Bat", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Baseball_bat.jpg", "category": "Things"},
+  {"name": "Skateboard", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Skateboard.jpg", "category": "Things"},
+  {"name": "Motorcycle", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Motocicleta_Ninja_zx6r.jpg", "category": "Things"},
+  {"name": "Airplane", "image": "https://en.wikipedia.org/wiki/Special:FilePath/A_plane_is_taking_off.jpg", "category": "Things"},
+  {"name": "Train", "image": "https://en.wikipedia.org/wiki/Special:FilePath/High_speed_train.jpg", "category": "Things"},
+  {"name": "Ship", "image": "https://en.wikipedia.org/wiki/Special:FilePath/USNS_Comfort.jpg", "category": "Things"},
+  {"name": "Helicopter", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Helicopter.jpg", "category": "Things"},
+  {"name": "Tent", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Tent_20100817.jpg", "category": "Things"},
+  {"name": "Flashlight", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Torch_flashlight.jpg", "category": "Things"},
+  {"name": "Fire Extinguisher", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Fire_extinguisher_family.jpg", "category": "Things"},
+  {"name": "Stethoscope", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Stethoscope-2.jpg", "category": "Things"},
+  {"name": "Thermometer", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Clinical_thermometer_38.7.jpg", "category": "Things"},
+  {"name": "Band-Aid", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Adhesive_bandage.jpg", "category": "Things"},
+  {"name": "Pillow", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Pillow.jpg", "category": "Things"},
+  {"name": "Blanket", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Picnic_blanket.jpg", "category": "Things"},
+  {"name": "Remote Control", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Handcontrol.jpg", "category": "Things"},
+  {"name": "Light Switch", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Light_switch.jpg", "category": "Things"},
+  {"name": "Power Outlet", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Schuko_plug_and_socket.jpg", "category": "Things"},
+  {"name": "Toothbrush", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Toothbrush.jpg", "category": "Things"},
+  {"name": "Soap", "image": "https://en.wikipedia.org/wiki/Special:FilePath/A_small_cup_of_coffee.JPG", "category": "Things"},
+  {"name": "Towel", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Towel.jpg", "category": "Things"},
+  {"name": "Razor", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Disposable_safety_razor.jpg", "category": "Things"},
+  {"name": "Comb", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Comb.jpg", "category": "Things"},
+  {"name": "Tape", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Tape_measure.jpg", "category": "Things"},
+  {"name": "Glue", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Glue_bottle.jpg", "category": "Things"},
+  {"name": "Stapler", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Stapler.jpg", "category": "Things"},
+  {"name": "Eraser", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Typewriter_correction_fluid.jpg", "category": "Things"},
+  {"name": "Ruler", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Ruler.jpg", "category": "Things"},
+  {"name": "Calculator", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Calculator_TI-84.jpg", "category": "Things"},
+  {"name": "Map", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Ptolemy_World_Map.jpg", "category": "Things"},
+  {"name": "Globe", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Terrestrial_globe.jpg", "category": "Things"},
+  {"name": "Picture Frame", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Picture_frame.jpg", "category": "Things"},
+  {"name": "Trash Bag", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Plastic_bag.jpg", "category": "Things"},
+  {"name": "Luggage", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Suitcase_(PSF).png", "category": "Things"},
+  {"name": "Alarm Clock", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Alarm_Clock_(ID_0001).jpg", "category": "Things"},
+
+  {"name": "Dog", "image": "https://en.wikipedia.org/wiki/Special:FilePath/YellowLabradorLooking_new.jpg", "category": "Animals"},
+  {"name": "Cat", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Domestic_cat_2.jpg", "category": "Animals"},
+  {"name": "Horse", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Horse_head_shot.jpg", "category": "Animals"},
+  {"name": "Cow", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Cow_female_black_white.jpg", "category": "Animals"},
+  {"name": "Pig", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Pig_01.jpg", "category": "Animals"},
+  {"name": "Chicken", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Chicken_wings.jpg", "category": "Animals"},
+  {"name": "Sheep", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Ovis_aries_ram.jpg", "category": "Animals"},
+  {"name": "Goat", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Goat_portrait_2.jpg", "category": "Animals"},
+  {"name": "Elephant", "image": "https://en.wikipedia.org/wiki/Special:FilePath/African_elephant_warning_at_Etosha.jpg", "category": "Animals"},
+  {"name": "Lion", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Lion_waiting_in_Namibia.jpg", "category": "Animals"},
+  {"name": "Tiger", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Tiger.50.jpg", "category": "Animals"},
+  {"name": "Bear", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Brown_bear_(Ursus_arctos_arctos)_running.jpg", "category": "Animals"},
+  {"name": "Wolf", "image": "https://en.wikipedia.org/wiki/Special:FilePath/White_wolf_Tundra.jpg", "category": "Animals"},
+  {"name": "Fox", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Red_Fox.jpg", "category": "Animals"},
+  {"name": "Deer", "image": "https://en.wikipedia.org/wiki/Special:FilePath/White-tailed_deer.jpg", "category": "Animals"},
+  {"name": "Rabbit", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Wild_rabbit_us.jpg", "category": "Animals"},
+  {"name": "Squirrel", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Eastern_Grey_Squirrel.jpg", "category": "Animals"},
+  {"name": "Rat", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Rattus_norvegicus_1.jpg", "category": "Animals"},
+  {"name": "Mouse", "image": "https://en.wikipedia.org/wiki/Special:FilePath/House_mouse.jpg", "category": "Animals"},
+  {"name": "Bat", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Little_brown_bat.jpg", "category": "Animals"},
+  {"name": "Eagle", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Bald_Eagle.jpg", "category": "Animals"},
+  {"name": "Owl", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Owl_at_night.jpg", "category": "Animals"},
+  {"name": "Penguin", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Penguins_walking_-_edit.jpg", "category": "Animals"},
+  {"name": "Parrot", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Parrots_in_Rainbow.jpg", "category": "Animals"},
+  {"name": "Flamingo", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Greater_Flamingo_Phoenicopterus_ruber.jpg", "category": "Animals"},
+  {"name": "Swan", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Mute_swan_Vrhnika.jpg", "category": "Animals"},
+  {"name": "Duck", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Mallard_-_male_and_female_9.jpg", "category": "Animals"},
+  {"name": "Pelican", "image": "https://en.wikipedia.org/wiki/Special:FilePath/American_White_Pelican.jpg", "category": "Animals"},
+  {"name": "Crocodile", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Crocodylus_niloticus.jpg", "category": "Animals"},
+  {"name": "Snake", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Ball_python.jpg", "category": "Animals"},
+  {"name": "Lizard", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Green_iguana_(Iguana_iguana)_RWD.jpg", "category": "Animals"},
+  {"name": "Turtle", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Tortoise_-_Wikimania.jpg", "category": "Animals"},
+  {"name": "Frog", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Frog_on_palm.jpg", "category": "Animals"},
+  {"name": "Shark", "image": "https://en.wikipedia.org/wiki/Special:FilePath/White_shark.jpg", "category": "Animals"},
+  {"name": "Whale", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Humpback_whales_in_singing_position.jpg", "category": "Animals"},
+  {"name": "Dolphin", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Bottlenose_Dolphin_KSC04pd0178.jpg", "category": "Animals"},
+  {"name": "Octopus", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Octopus3.jpg", "category": "Animals"},
+  {"name": "Jellyfish", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Jellyfish.jpg", "category": "Animals"},
+  {"name": "Crab", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Dungeness_crab.jpg", "category": "Animals"},
+  {"name": "Lobster", "image": "https://en.wikipedia.org/wiki/Special:FilePath/American_lobster.jpg", "category": "Animals"},
+  {"name": "Gorilla", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Western_gorilla_(Gorilla_gorilla)_male.jpg", "category": "Animals"},
+  {"name": "Chimpanzee", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Chimpanzee_at_the_zoo.jpg", "category": "Animals"},
+  {"name": "Orangutan", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Bornean_orangutan.jpg", "category": "Animals"},
+  {"name": "Panda", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Giant_Panda_2004-03-2.jpg", "category": "Animals"},
+  {"name": "Koala", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Koala_climbing_tree.jpg", "category": "Animals"},
+  {"name": "Kangaroo", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Eastern_grey_kangaroo_Tasmania.jpg", "category": "Animals"},
+  {"name": "Giraffe", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Giraffe_standing.jpg", "category": "Animals"},
+  {"name": "Zebra", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Zebra_standing_alone.jpg", "category": "Animals"},
+  {"name": "Hippopotamus", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Hippopotamus_in_Mikumi_National_Park.jpg", "category": "Animals"},
+  {"name": "Rhinoceros", "image": "https://en.wikipedia.org/wiki/Special:FilePath/White_Rhinoceros.jpg", "category": "Animals"},
+  {"name": "Cheetah", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Cheetah_Kenya.jpg", "category": "Animals"},
+  {"name": "Leopard", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Leopard_africa.jpg", "category": "Animals"},
+  {"name": "Jaguar", "image": "https://en.wikipedia.org/wiki/Special:FilePath/A_Jaguar_from_Belize_Zoo.jpg", "category": "Animals"},
+  {"name": "Polar Bear", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Polar_Bear_-_Alaska_(cropped).jpg", "category": "Animals"},
+  {"name": "Moose", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Bull_moose_superior.jpg", "category": "Animals"},
+  {"name": "Bison", "image": "https://en.wikipedia.org/wiki/Special:FilePath/American_bison_k5680-1.jpg", "category": "Animals"},
+  {"name": "Otter", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Sea_otter_cropped.jpg", "category": "Animals"},
+  {"name": "Seal", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Seal_on_rock.jpg", "category": "Animals"},
+  {"name": "Walrus", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Pacific_Walrus_-_Bull_(8247646168).jpg", "category": "Animals"},
+  {"name": "Peacock", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Peacock_Plumage.jpg", "category": "Animals"},
+  {"name": "Sloth", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Bradypus.jpg", "category": "Animals"},
+  {"name": "Armadillo", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Nine-banded_armadillo.jpg", "category": "Animals"},
+  {"name": "Platypus", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Platypus.jpg", "category": "Animals"},
+  {"name": "Meerkat", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Meerkat_(Suricata_suricatta)_Cheetah_Centre.jpg", "category": "Animals"},
+  {"name": "Hyena", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Spotted_hyena_crop.jpg", "category": "Animals"},
+  {"name": "Warthog", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Warthog_001.jpg", "category": "Animals"},
+  {"name": "Bald Eagle", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Bald_Eagle_Portrait.jpg", "category": "Animals"},
+  {"name": "Hummingbird", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Hummingbird.jpg", "category": "Animals"},
+  {"name": "Chameleon", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Panther_chameleon_(Furcifer_pardalis)_male.jpg", "category": "Animals"},
+  {"name": "Mantis", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Praying_mantis.jpg", "category": "Animals"},
+  {"name": "Butterfly", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Papilio_machaon_(1).jpg", "category": "Animals"},
+  {"name": "Dragonfly", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Blue_dragonfly_resting.jpg", "category": "Animals"},
+  {"name": "Bee", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Apis_mellifera_Flying.jpg", "category": "Animals"},
+  {"name": "Ant", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Ant_head_closeup.jpg", "category": "Animals"},
+  {"name": "Spider", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Araneus_diadematus_09_(aka).jpg", "category": "Animals"},
+  {"name": "Scorpion", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Scorpion_Leiurus_quinquestriatus.jpg", "category": "Animals"},
+  {"name": "Hedgehog", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Erinaceus_europaeus_LC0119.jpg", "category": "Animals"},
+  {"name": "Flamingo (2)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Flamingos_Laguna_Colorada.jpg", "category": "Animals"},
+  {"name": "Narwhal", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Narwhal.jpg", "category": "Animals"},
+  {"name": "Axolotl", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Axolotl.jpg", "category": "Animals"},
+  {"name": "Capybara", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Capybara_Hattiesburg_Zoo_(70909b-42)_(14910786474).jpg", "category": "Animals"},
+  {"name": "Tapir", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Tapirus_terrestris.jpg", "category": "Animals"},
+  {"name": "Quokka", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Quokka_(Setonix_brachyurus).jpg", "category": "Animals"},
+  {"name": "Caracal", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Caracal_(Caracal_caracal)_(6031036146).jpg", "category": "Animals"},
+  {"name": "Mandrill", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Mandrill_at_SF_Zoo.jpg", "category": "Animals"},
+  {"name": "Komodo Dragon", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Komodo_dragon_(Varanus_komodoensis)_(7386985432).jpg", "category": "Animals"},
+  {"name": "Porcupine", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Erethizon_dorsatum.jpg", "category": "Animals"},
+  {"name": "Cassowary", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Casuarius_casuarius.jpg", "category": "Animals"},
+  {"name": "Wolverine (animal)", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Wolverine_(5643705394).jpg", "category": "Animals"},
+  {"name": "Anteater", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Giant_anteater_2.jpg", "category": "Animals"},
+  {"name": "Flying Squirrel", "image": "https://en.wikipedia.org/wiki/Special:FilePath/Northern_flying_squirrel.jpg", "category": "Animals"}
+]
+
+;
+
+// ── BOOT ──────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  loadData();
+});
+</script>
+</body>
+</html>
